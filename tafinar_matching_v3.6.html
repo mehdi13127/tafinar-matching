@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAFINAR — Analyse CVs v3.6</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<style>
+:root{
+  --marine:#0d3b6e;--marine2:#1a5296;--vert:#0e7c3a;--vert2:#12a34e;
+  --gris:#f4f5f7;--gris2:#e0e3e8;--gtexte:#6b7280;
+  --rouge:#dc2626;--bord:#d1d5db;--dark:#2b2b2b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--gris);color:var(--dark);min-height:100vh;}
+
+header{background:var(--marine);padding:13px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.logo{font-size:20px;font-weight:800;color:#fff;letter-spacing:1px;}
+.logo span{color:#5bb8ff;}
+.soustitre{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.badge-v{background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-size:10px;padding:3px 9px;border-radius:20px;}
+.stk-mini{font-size:10px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:5px;}
+.stk-barre{width:50px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;}
+.stk-fill{height:100%;border-radius:2px;background:#5bb8ff;transition:width .3s;}
+.hbtn{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+.hbtn:hover{background:rgba(255,255,255,.2);}
+
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1998;display:none;}
+.ovl.show{display:block;}
+.modal-wrap{position:fixed;inset:0;z-index:1999;display:none;align-items:center;justify-content:center;}
+.modal-wrap.show{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:28px;width:480px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.22);}
+.modal.wide{width:720px;}
+.modal h2{font-size:17px;margin-bottom:10px;color:var(--marine);}
+.modal p{font-size:13px;color:var(--gtexte);margin-bottom:14px;line-height:1.55;}
+.modal-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.stk-info{background:var(--gris);border-radius:8px;padding:11px;margin-bottom:14px;font-size:12px;}
+.stk-bg{height:6px;background:var(--gris2);border-radius:3px;margin:6px 0;}
+.stk-bar{height:100%;border-radius:3px;background:var(--vert);transition:width .3s;}
+
+.conteneur{max-width:1440px;margin:0 auto;padding:22px;display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
+
+.panneau{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;margin-bottom:14px;}
+.p-titre{background:var(--marine);color:#fff;padding:11px 16px;font-size:12px;font-weight:700;letter-spacing:.4px;}
+.p-corps{padding:16px;}
+
+.zone-drop{border:2px dashed var(--bord);border-radius:9px;padding:20px 14px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gris);}
+.zone-drop:hover,.zone-drop.over{border-color:var(--marine);background:#eef4fc;}
+.zone-drop .ico{font-size:24px;margin-bottom:5px;}
+.zone-drop .t1{font-size:13px;font-weight:600;}
+.zone-drop .t2{font-size:11px;color:var(--gtexte);margin-top:2px;}
+.liste-cvs{margin-top:9px;display:flex;flex-direction:column;gap:4px;}
+.cv-row{display:flex;align-items:center;gap:6px;background:var(--gris);border-radius:6px;padding:6px 8px;font-size:11px;}
+.cv-row .cvnom{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cv-row .cvst{font-size:10px;color:var(--gtexte);white-space:nowrap;flex-shrink:0;}
+.cv-row .cvsup{background:none;border:none;color:var(--rouge);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;}
+.cv-row.ok .cvst{color:var(--vert);}
+.cv-row.warn .cvst{color:#d97706;}
+
+.poste-card{border:1px solid var(--bord);border-radius:8px;margin-bottom:7px;overflow:hidden;}
+.pc-head{display:flex;align-items:center;padding:8px 10px;background:var(--gris);cursor:pointer;gap:6px;}
+.pc-head .pnom{flex:1;font-size:12px;font-weight:600;}
+.pc-body{padding:10px;display:none;}
+.pc-body.open{display:block;}
+.fg{margin-bottom:9px;}
+.fg label{display:block;font-size:10px;font-weight:700;color:var(--gtexte);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
+.fg input,.fg textarea{width:100%;padding:6px 8px;border:1px solid var(--bord);border-radius:6px;font-size:12px;font-family:inherit;background:#fff;}
+.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--marine);}
+.tag-row{display:flex;gap:5px;margin-bottom:4px;}
+.tag-row input{flex:1;padding:5px 8px;border:1px solid var(--bord);border-radius:6px;font-size:11px;font-family:inherit;}
+.tbtn{padding:5px 9px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.tbtn.inc{background:#e8f5e9;color:#2e7d32;}
+.tbtn.exc{background:#fce4e4;color:#c62828;}
+.tags-zone{display:flex;flex-wrap:wrap;gap:3px;min-height:18px;margin-bottom:5px;}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;}
+.tag.inc{background:#e8f5e9;color:#2e7d32;}
+.tag.exc{background:#fce4e4;color:#c62828;}
+.tag button{background:none;border:none;cursor:pointer;font-size:10px;color:inherit;opacity:.7;padding:0;}
+.zone-fiche{border:1px dashed var(--bord);border-radius:6px;padding:7px;text-align:center;cursor:pointer;font-size:11px;color:var(--gtexte);background:var(--gris);transition:all .2s;}
+.zone-fiche:hover{border-color:var(--marine);color:var(--marine);}
+.zone-fiche.ok{border-color:var(--vert);color:var(--vert);background:#f0fdf4;}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 15px;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;}
+.btn-m{background:var(--marine);color:#fff;} .btn-m:hover{background:var(--marine2);}
+.btn-m:disabled{opacity:.35;cursor:not-allowed;}
+.btn-v{background:var(--vert);color:#fff;} .btn-v:hover{background:var(--vert2);}
+.btn-v:disabled{opacity:.35;cursor:not-allowed;}
+.btn-o{background:transparent;color:var(--marine);border:1.5px solid var(--marine);}
+.btn-o:hover{background:#eef4fc;}
+.btn-g{background:var(--gris2);color:var(--dark);border:none;} .btn-g:hover{background:#c8cdd4;}
+.btn-d{background:#fce4e4;color:var(--rouge);border:none;}
+.btn-sm{padding:5px 10px;font-size:10px;}
+.btn-bl{width:100%;}
+.sep{border:none;border-top:1px solid var(--bord);margin:12px 0;}
+
+.res-zone{display:flex;flex-direction:column;gap:16px;}
+.etat0{background:#fff;border-radius:12px;padding:52px 26px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.etat0 .ico0{font-size:44px;margin-bottom:12px;opacity:.22;}
+.etat0 p{color:var(--gtexte);font-size:13px;}
+
+.progbar{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.08);display:none;}
+.progbar.show{display:block;}
+.prog-t{font-size:13px;font-weight:600;margin-bottom:9px;}
+.prog-bg{width:100%;height:6px;background:var(--gris2);border-radius:3px;overflow:hidden;margin-bottom:6px;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--marine),var(--vert));border-radius:3px;transition:width .35s;width:0%;}
+.prog-st{font-size:11px;color:var(--gtexte);}
+
+.onglets{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;display:none;}
+.onglets.show{display:block;}
+.ong-nav{display:flex;background:var(--gris);border-bottom:1px solid var(--bord);overflow-x:auto;}
+.ong-btn{padding:10px 18px;font-size:11px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--gtexte);white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s;font-family:inherit;}
+.ong-btn.actif{color:var(--marine);border-bottom-color:var(--marine);background:#fff;}
+.ong-corps{padding:20px;overflow-x:auto;}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:750px;}
+.tbl th{text-align:left;padding:0;border-bottom:2px solid var(--bord);background:var(--gris);}
+.th-inner{padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gtexte);white-space:nowrap;}
+.th-filter{display:block;padding:4px 10px 6px;}
+.th-filter input{width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;background:#fff;color:var(--dark);}
+.th-filter input:focus{outline:none;border-color:var(--marine);}
+.tbl td{padding:11px 10px;border-bottom:1px solid var(--bord);vertical-align:top;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tbody tr.data-row:hover td{background:#f8fafc;}
+.tbl tbody tr.hidden{display:none;}
+
+.rtag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin:2px 2px 2px 0;}
+.rtag.pres{background:#e8edf5;color:#1e3a5f;}
+.rtag.mq{background:#f0f0f0;color:#555;text-decoration:line-through;}
+.rtag.att{background:#f5f5f5;color:#444;}
+.rtag.neutre{background:#e8edf5;color:#1e3a5f;}
+
+/* BARRE SÉLECTION */
+.sel-bar{position:fixed;bottom:0;left:0;right:0;background:var(--marine);color:#fff;padding:12px 28px;display:none;align-items:center;gap:12px;z-index:500;box-shadow:0 -2px 12px rgba(0,0,0,.2);}
+.sel-bar.show{display:flex;}
+.sel-bar span{font-size:13px;font-weight:600;}
+
+/* PANNEAU DÉTAIL */
+.detail{position:fixed;top:0;right:0;width:480px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.15);z-index:2000;overflow-y:auto;transform:translateX(100%);transition:transform .3s;}
+.detail.open{transform:translateX(0);}
+.dh{background:var(--marine);color:#fff;padding:17px 20px;position:sticky;top:0;}
+.dh h2{font-size:16px;margin-bottom:2px;padding-right:34px;line-height:1.3;}
+.dh .dsp{font-size:11px;opacity:.7;margin-top:3px;}
+.btn-x{position:absolute;top:13px;right:13px;background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.dc{padding:20px;}
+.ds{margin-bottom:18px;}
+.dst{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--marine);margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid var(--marine);}
+.cline{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--gris2);font-size:12px;}
+.cline:last-child{border-bottom:none;}
+.cline .ci{width:16px;text-align:center;flex-shrink:0;margin-top:1px;}
+.cline .cn{flex:1;font-weight:500;}
+.cline .cc{font-size:10px;color:var(--gtexte);font-style:italic;}
+
+/* FICHE PROFIL */
+.fiche-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.fiche-champ label{display:block;font-size:10px;font-weight:700;color:var(--gtexte);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
+.fiche-champ input,.fiche-champ select,.fiche-champ textarea{width:100%;padding:6px 8px;border:1px solid var(--bord);border-radius:6px;font-size:12px;font-family:inherit;background:#fff;color:var(--dark);}
+.fiche-champ input:focus,.fiche-champ select:focus,.fiche-champ textarea:focus{outline:none;border-color:var(--marine);}
+.fiche-champ.full{grid-column:1/-1;}
+.statut-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;}
+.statut-badge.s0{background:#f3f4f6;color:#6b7280;}
+.statut-badge.s1{background:#dbeafe;color:#1d4ed8;}
+.statut-badge.s2{background:#fef3c7;color:#92400e;}
+.statut-badge.s3{background:#ede9fe;color:#5b21b6;}
+.statut-badge.s4{background:#dcfce7;color:#166534;}
+.statut-badge.s5{background:#fee2e2;color:#991b1b;}
+
+/* ANONYMISATION */
+.anon-panel{background:#fff;border:1px solid var(--bord);border-radius:10px;margin-top:16px;overflow:hidden;}
+.anon-panel-header{background:var(--marine);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.anon-panel-header h3{font-size:13px;font-weight:600;}
+.anon-iframe-wrap{background:#e5e7eb;padding:16px;overflow:auto;}
+#anon-iframe{width:210mm;min-height:297mm;border:none;display:block;margin:0 auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);}
+
+/* HISTORIQUE */
+.hist-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.hist-tbl th{text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gtexte);border-bottom:2px solid var(--bord);background:var(--gris);}
+.hist-tbl td{padding:10px;border-bottom:1px solid var(--bord);vertical-align:middle;}
+.hist-tbl tr:hover td{background:#f8fafc;}
+
+.alerte{padding:8px 11px;border-radius:7px;font-size:11px;font-weight:700;margin-top:8px;display:none;}
+.alerte.show{display:block;}
+.alerte.err{background:#fce4e4;color:#c62828;}
+.alerte.ok{background:#e8f5e9;color:#2e7d32;}
+</style>
+</head>
+<body>
+
+<div class="ovl" id="ovl" onclick="fermerTout()"></div>
+
+<!-- MODAL CLÉ -->
+<div class="modal-wrap" id="mw-cle">
+  <div class="modal" id="m-cle">
+    <h2>🔑 Clé API Anthropic</h2>
+    <p>Saisie une seule fois, stockée dans ton navigateur.</p>
+    <div class="stk-info">
+      <div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">Espace utilisé</span><span id="s-pct">—</span></div>
+      <div class="stk-bg"><div class="stk-bar" id="s-fill" style="width:0%"></div></div>
+      <div style="color:var(--gtexte);font-size:11px;" id="s-det">—</div>
+    </div>
+    <input type="password" id="inp-cle" placeholder="sk-ant-api03-..." style="width:100%;padding:9px 11px;border:1.5px solid var(--bord);border-radius:7px;font-size:13px;font-family:inherit;margin-bottom:6px;">
+    <div style="font-size:11px;color:var(--gtexte);margin-bottom:14px;">Disponible sur console.anthropic.com → API Keys</div>
+    <button class="btn btn-v btn-bl" onclick="validerCle()">Confirmer et démarrer</button>
+    <button class="btn btn-g btn-bl" style="margin-top:8px;" onclick="fermerModal('mw-cle')">Fermer</button>
+    <div class="alerte" id="al-cle"></div>
+  </div>
+</div>
+
+
+<!-- MODAL MÉTIERS AUTOMOBILE -->
+<div class="modal-wrap" id="mw-auto">
+  <div class="modal wide" style="max-height:85vh;overflow-y:auto;">
+    <h2>🚗 Sélectionner un métier automobile</h2>
+    <div id="auto-categories" style="display:flex;flex-direction:column;gap:16px;margin-bottom:16px;"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-auto')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DOUBLON -->
+<div class="modal-wrap" id="mw-dbl">
+  <div class="modal" id="m-dbl">
+    <h2>⚠ CV déjà analysé</h2>
+    <p id="dbl-txt"></p>
+    <div class="modal-btns">
+      <button class="btn btn-g" onclick="dblChoix('ignorer')">Ignorer</button>
+      <button class="btn btn-m" onclick="dblChoix('analyser')">Analyser quand même</button>
+      <button class="btn btn-v" onclick="dblChoix('historique')">Voir l'historique</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STOCKAGE -->
+<div class="modal-wrap" id="mw-stk">
+  <div class="modal">
+    <h2>💾 Gestion du stockage</h2>
+    <div class="stk-info">
+      <div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">Espace utilisé</span><span id="s2-pct" style="font-weight:700;"></span></div>
+      <div class="stk-bg"><div class="stk-bar" id="s2-fill" style="width:0%"></div></div>
+      <div style="color:var(--gtexte);font-size:11px;" id="s2-det"></div>
+    </div>
+    <div id="stk-liste" style="max-height:240px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-d btn-sm" onclick="viderTout()">🗑 Tout supprimer</button>
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-stk')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE HISTORIQUE -->
+<div id="page-hist" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:1500;overflow-y:auto;">
+  <div style="background:var(--marine);padding:13px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2);">
+    <span style="font-size:16px;font-weight:800;color:#fff;">TAFINAR<span style="color:#5bb8ff;">.</span></span>
+    <span style="font-size:13px;color:rgba(255,255,255,.7);">📋 Historique des analyses</span>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="hbtn" onclick="viderHistorique()">🗑 Tout effacer</button>
+      <button class="hbtn" onclick="fermerHistoriquePage()">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="max-width:1200px;margin:24px auto;padding:0 24px;">
+    <div id="hist-corps"></div>
+  </div>
+</div>
+
+<!-- MODAL EMAIL -->
+<div class="modal-wrap" id="mw-email">
+  <div class="modal wide" style="max-height:92vh;overflow-y:auto;">
+    <h2>✉ Email récapitulatif — Profils TAFINAR</h2>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--gtexte);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Colonnes affichées</div>
+      <div id="col-toggles" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+    <div style="margin-bottom:10px;font-size:11px;color:var(--gtexte);">Clique sur une cellule pour modifier son contenu directement.</div>
+    <div id="email-corps" style="max-height:460px;overflow-y:auto;border:1px solid var(--bord);border-radius:8px;padding:16px;background:#fafafa;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+      <button class="btn btn-m btn-sm" onclick="copierEmailOutlook()">📋 Copier pour Outlook</button>
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-email')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CV À RE-SÉLECTIONNER -->
+<div class="modal-wrap" id="mw-dlcv">
+  <div class="modal">
+    <h2>📂 Télécharger les CVs sélectionnés</h2>
+    <p id="dlcv-txt">Re-sélectionne les fichiers CVs depuis ton PC. L'outil va récupérer uniquement les CVs cochés.</p>
+    <div style="margin:12px 0;">
+      <input type="file" id="inp-dlcv" multiple accept=".pdf,.doc,.docx,.txt"
+        style="font-size:12px;" onchange="traiterDlCvs(this.files)">
+    </div>
+    <div id="dlcv-status" style="font-size:12px;color:var(--gtexte);margin-top:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-dlcv')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div>
+    <div class="logo">TAFINAR<span>.</span></div>
+    <div class="soustitre">Analyse & Correspondance CVs — Postes</div>
+  </div>
+  <div class="hdr-right">
+    <div class="stk-mini">
+      <span id="hd-stk">—</span>
+      <div class="stk-barre"><div class="stk-fill" id="hd-fill" style="width:0%"></div></div>
+    </div>
+    <span id="hd-cv-count" style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;">0 CV</span>
+    <button class="hbtn" onclick="ouvrirAnonPage()">✂ Anonymiser</button>
+    <button class="hbtn" onclick="ouvrirFichesPage()">👤 Fiches</button>
+    <button class="hbtn" onclick="ouvrirHistoriquePage()">📋 Historique</button>
+    <button class="hbtn" onclick="ouvrirStockage()">💾 Stockage</button>
+    <button class="hbtn" onclick="reinitCle()">🔑 Clé</button>
+    <div class="badge-v">v3.6</div>
+  </div>
+</header>
+
+<div class="conteneur">
+  <div>
+    <div class="panneau">
+      <div class="p-titre">📄 CVs à analyser</div>
+      <div class="p-corps">
+        <div class="zone-drop" id="zdrop"
+             onclick="document.getElementById('inp-cv').click()"
+             ondragover="event.preventDefault();this.classList.add('over')"
+             ondragleave="this.classList.remove('over')"
+             ondrop="onDrop(event)">
+          <div class="ico">📂</div>
+          <div class="t1">Glisser les CVs ici</div>
+          <div class="t2">PDF · Word (.docx) · TXT</div>
+        </div>
+        <input type="file" id="inp-cv" multiple accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="ajouterCVs(this.files)">
+        <div class="liste-cvs" id="liste-cvs"></div>
+      </div>
+    </div>
+    <div class="panneau">
+      <div class="p-titre">🎯 Postes à pourvoir</div>
+      <div class="p-corps">
+        <button class="btn btn-d btn-sm btn-bl" style="margin-bottom:6px;" onclick="nouvelleAnalyse()">🔄 Nouvelle analyse</button>
+        <div style="display:flex;gap:6px;margin-bottom:9px;"><button class="btn btn-m btn-sm" style="flex:1;" onclick="ajouterPoste()">+ Poste libre</button><button class="btn btn-sm" style="flex:1;background:#0e7c3a;color:#fff;font-weight:700;" onclick="ouvrirSelecteurAuto()">🚗 Poste auto</button></div>
+        <div id="liste-postes"></div>
+        <div class="sep"></div>
+        <button class="btn btn-v btn-bl" id="btn-ana" onclick="lancerAnalyse()" disabled>🔍 Lancer l'analyse</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="res-zone">
+    <div class="etat0" id="etat0">
+      <div class="ico0">🔍</div>
+      <p>Ajoute des CVs et des postes,<br>puis lance l'analyse.</p>
+    </div>
+    <div class="progbar" id="progbar">
+      <div class="prog-t" id="prog-t">Analyse en cours...</div>
+      <div class="prog-bg"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-st" id="prog-st"></div>
+      <div style="margin-top:10px;text-align:right;">
+        <button class="btn btn-d btn-sm" onclick="annulerAnalyse()">✕ Annuler</button>
+      </div>
+    </div>
+    <div class="onglets" id="onglets">
+      <div class="ong-nav" id="ong-nav"></div>
+      <div class="ong-corps" id="ong-corps"></div>
+    </div>
+    <div id="anon-zone"></div>
+  </div>
+</div>
+
+
+<!-- MODAL ANONYMISATION -->
+<div class="modal-wrap" id="mw-anon">
+  <div class="modal wide" style="max-height:90vh;overflow-y:auto;">
+    <h2>✂ Anonymisation de CVs</h2>
+    <p style="font-size:12px;color:var(--gtexte);margin-bottom:14px;">Upload un ou plusieurs PDFs. Le résultat s'ouvre dans un nouvel onglet.</p>
+    <div class="zone-drop" id="anon-drop"
+         onclick="document.getElementById('inp-anon-cv').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="anonOnDrop(event)">
+      <div class="ico">📄</div>
+      <div class="t1">Glisser les PDFs ici</div>
+      <div class="t2">PDF uniquement · Plusieurs fichiers acceptés</div>
+    </div>
+    <input type="file" id="inp-anon-cv" multiple accept=".pdf" style="display:none" onchange="anonAjouterFichiers(this.files)">
+    <div id="anon-file-list" style="margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
+    <div id="anon-progress" style="margin-top:12px;display:none;">
+      <div class="prog-bg"><div class="prog-fill" id="anon-prog-fill" style="width:0%"></div></div>
+      <div style="font-size:11px;color:var(--gtexte);margin-top:5px;" id="anon-prog-st"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn btn-v" id="btn-lancer-anon" onclick="lancerAnonBatch()" disabled>▶ Lancer l'anonymisation</button>
+      <button class="btn btn-d btn-sm" onclick="viderListeAnon()">🗑 Vider</button>
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-anon')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- PAGE FICHES CANDIDATS -->
+<div id="page-fiches" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:1500;overflow-y:auto;">
+  <div style="background:var(--marine);padding:13px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2);">
+    <span style="font-size:16px;font-weight:800;color:#fff;">TAFINAR<span style="color:#5bb8ff;">.</span></span>
+    <span style="font-size:13px;color:rgba(255,255,255,.7);">👤 Fiches candidats</span>
+    <div style="margin-left:auto;"><button class="hbtn" onclick="fermerFichesPage()">✕ Fermer</button></div>
+  </div>
+  <div style="max-width:1300px;margin:24px auto;padding:0 24px;"><div id="fiches-corps"></div></div>
+</div>
+
+<!-- BARRE SÉLECTION -->
+<div class="sel-bar" id="sel-bar">
+  <span id="sel-count">0 profil(s) sélectionné(s)</span>
+  <button class="btn btn-v btn-sm" onclick="genererEmail()">✉ Générer email</button>
+  <button class="btn btn-g btn-sm" onclick="ouvrirDlCvs()">📥 Télécharger CVs</button>
+  <button class="btn btn-sm" onclick="ouvrirComparateur()" style="background:#5bb8ff;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:7px;padding:8px 15px;cursor:pointer;">⚖ Comparer</button>
+  <button class="btn btn-d btn-sm" onclick="toutDeselectionner()">✕ Désélectionner</button>
+</div>
+
+
+<!-- PAGE COMPARATEUR -->
+<div id="page-comp" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:1600;overflow-y:auto;">
+  <div style="background:var(--marine);padding:13px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2);">
+    <span style="font-size:16px;font-weight:800;color:#fff;">TAFINAR<span style="color:#5bb8ff;">.</span></span>
+    <span style="font-size:13px;color:rgba(255,255,255,.7);">⚖ Comparateur de profils</span>
+    <div style="margin-left:auto;"><button class="hbtn" onclick="fermerComparateur()">✕ Fermer</button></div>
+  </div>
+  <div style="max-width:1400px;margin:24px auto;padding:0 24px;"><div id="comp-corps"></div></div>
+</div>
+
+<!-- PANNEAU DÉTAIL -->
+<div class="detail" id="detail">
+  <div class="dh">
+    <button class="btn-x" onclick="fermerDetail()">✕</button>
+    <h2 id="d-nom">—</h2>
+    <div class="dsp" id="d-poste">—</div>
+  </div>
+  <div class="dc" id="d-corps"></div>
+</div>
+
+<script>
+// ── CONSTANTES ────────────────────────────────────────────────────────────────
+const LOGO_B64 = "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";
+const ANON_PROMPT = `Tu es expert en extraction et mise en forme de CV. Ton role est de transcrire fidelement le contenu professionnel d'un CV en JSON structure, en anonymisant l'identite et en supprimant toute information personnelle.
+
+ETAPE 1 — ANONYMISATION ET SUPPRESSION DES DONNEES PERSONNELLES :
+Remplace prenom et nom par un code de EXACTEMENT 4 LETTRES.
+IDENTIFICATION DU PRENOM ET NOM : Sur un CV, le format peut etre "Prenom NOM" ou "NOM Prenom". Identifie toujours correctement lequel est le prenom (prenom usuel) et lequel est le nom de famille avant d'appliquer la regle. Exemple : "ASSEMAR MOHAMED" → nom=ASSEMAR, prenom=MOHAMED.
+REGLE : lettre1=1ere lettre du PRENOM, lettre2=DERNIERE lettre du PRENOM, lettre3=1ere lettre du NOM, lettre4=DERNIERE lettre du NOM. TOUJOURS 4 LETTRES, JAMAIS 3.
+Exemples : Nicolas Dupont → 1er mot=Nicolas(N+S), dernier mot=Dupont(D+T) → NSDT. Jean Martin → JNMN. ASSEMAR MOHAMED → 1er mot=ASSEMAR(A+R), dernier mot=MOHAMED(M+D) → ARMD. Marie-Claire DUPONT → 1er mot=Marie-Claire(M+E), dernier mot=DUPONT(D+T) → MEDT.
+
+SUPPRIME ABSOLUMENT et partout dans le CV, meme dans l'apercu ou les descriptions :
+- Email, telephone, adresse postale, URL LinkedIn, tout lien personnel
+- Age et date de naissance (ex: "37 ans", "né le 12/03/1987")
+- Situation familiale (marie, celibataire, divorce, pacse, en couple)
+- Nombre d'enfants (ex: "2 enfants", "pere de famille")
+- Nationalite (ex: "Francais", "de nationalite marocaine")
+- Photo ou reference a une photo
+NE supprime rien d'autre. Garde absolument tout le contenu professionnel.
+
+ETAPE 2 — PRESERVATION INTEGRALE DU CONTENU PROFESSIONNEL :
+REGLE ABSOLUE : reproduis TOUT le contenu professionnel mot pour mot, sans rien omettre, sans resumer, sans fusionner. Si une experience a 8 taches, le JSON doit avoir exactement 8 taches. Ne reduis jamais le nombre d'elements. Le permis de conduire est une information professionnelle : le garder.
+
+Le "titre" est le titre/poste principal du candidat. Pour les langues : score 0-1 (natif=1, courant=0.85, avance=0.7, intermediaire=0.55, notions=0.3). Sections dans l'ordre du CV (competences toujours apres experiences) : "apercu", "experiences", "competences", "formation", "certifications", "langues", "generic_tags", "generic_list".
+UNIQUEMENT JSON valide, sans markdown, sans backtick.
+{"code":"NSDT","titre":"Titre principal","sections":[{"type":"apercu","contenu":"texte integral sans infos personnelles"},{"type":"experiences","titre":"Experiences Professionnelles","items":[{"entreprise":"Nom","poste":"Titre","date":"periode","taches":["tache 1 complete","tache 2 complete"]}]},{"type":"competences","titre":"Competences","items":["comp 1","comp 2"]},{"type":"formation","titre":"Formation","items":[{"ecole":"Nom","diplome":"Titre","specialite":"spec","date":"periode"}]},{"type":"certifications","titre":"Certifications","items":[{"nom":"cert","date":"2023"}]},{"type":"langues","titre":"Langues","items":[{"langue":"Francais","niveau":"Bilingue","score":1.0}]},{"type":"generic_tags","titre":"Centres d'interet","items":["item1"]}]}`;
+
+
+const METIERS_AUTO = {
+  "Validation & Essais": {
+    "Ingénieur Validation Fonctionnelle": ["Validation fonctionnelle","CANoe","CANalyzer","CAPL","ISO 26262","DOORS","test cases","banc d'essai"],
+    "Ingénieur Validation HIL": ["HIL","dSPACE","SCALEXIO","CANoe","Matlab Simulink","banc HIL","test automation"],
+    "Ingénieur Validation SIL": ["SIL","MIL","Matlab Simulink","génération de code","test model","couverture de code"],
+    "Ingénieur Validation Véhicule": ["validation véhicule","essais sur piste","protocole de test","CANoe","diagnostic","CAN","LIN"],
+    "Ingénieur Essais": ["essais véhicule","mesure","instrumentation","capteurs","acquisition données","TESTLAB","nVH"],
+    "Pilote Essais": ["pilotage véhicule","essais piste","Flying Doctor","GV","protocole essais","rapport d'essais"],
+    "Ingénieur Banc moteur": ["banc moteur","calibration banc","PUMA","MORPHEE","AVL IndiCom","thermique moteur","combustion"],
+    "Flying Doctor": ["diagnostic embarqué","mesure embarquée","acquisition temps réel","CAN","protocoles véhicule","rapport d'essais"],
+    "Flying GV": ["essais Grande Vitesse","piste d'essais","instrumentation véhicule","mesure dynamique","sécurité piste"]
+  },
+  "Systèmes Embarqués": {
+    "Ingénieur Systèmes": ["architecture système","MBSE","SYSML","UML","Cameo","exigences système","V-cycle"],
+    "Ingénieur MBSE": ["MBSE","SysML","Cameo","Capella","modélisation système","architecture","IBM Rhapsody"],
+    "Ingénieur Électronique": ["électronique embarquée","PCB","schéma électronique","Altium","SPICE","LIN","CAN","Ethernet"],
+    "Ingénieur Software Embarqué": ["C embarqué","RTOS","AUTOSAR","BSP","drivers","microcontrôleur","EB Tresos","DaVinci"],
+    "Ingénieur AUTOSAR": ["AUTOSAR","ARXML","SWC","RTE","BSW","DaVinci","EB Tresos","Vector","configuration ECU"],
+    "Développeur C/C++": ["C","C++","embarqué","microcontrôleur","temps réel","RTOS","optimisation","bas niveau"],
+    "Développeur Matlab/Simulink": ["Matlab","Simulink","Stateflow","génération de code","MIL","SIL","HIL","Embedded Coder","TargetLink"],
+    "Ingénieur Diagnostic": ["diagnostic OBD","UDS","KWP2000","CAN","DTC","EOBD","CANoe","ODX","PDX"],
+    "Ingénieur CAN": ["CAN","LIN","FlexRay","CANoe","CANalyzer","CAPL","bus réseau","DBC","matrices réseaux"],
+    "Ingénieur Ethernet Automobile": ["Ethernet","SOME/IP","DoIP","AVB","TSN","TCP/IP embarqué","Vector","Wireshark"]
+  },
+  "Calibration": {
+    "Calibration Moteur": ["calibration","INCA","MDA","CANape","thermique","combustion","injection","cartographie","banc moteur"],
+    "Calibration Hybrid": ["hybride","HV","batterie","moteur électrique","INCA","CANape","stratégie énergie","récupération"],
+    "Calibration EV": ["véhicule électrique","BMS","moteur électrique","CANape","INCA","stratégie charge","autonomie"],
+    "Calibration BMS": ["BMS","batterie","SOC","SOH","cellules","thermique batterie","CANape","algorithme charge"],
+    "Calibration Transmission": ["transmission","boîte de vitesses","TCU","calibration","INCA","CANape","stratégie passage"],
+    "Calibration ADAS": ["ADAS","radar","caméra","lidar","calibration capteurs","fusion données","ISO 26262","AUTOSAR"]
+  },
+  "Gestion de Projet": {
+    "Chef de Projet Automobile": ["gestion de projet","planning","budget","coordination","OEM","APQP","PPAP","Jira","MS Project"],
+    "PMO Automobile": ["PMO","portefeuille projets","reporting","KPI","planning","gouvernance","risques","MS Project"],
+    "Coordinateur Technique": ["coordination technique","suivi projet","interfaces","livrables","planification","V-cycle"],
+    "Responsable Industrialisation": ["industrialisation","PFMEA","plan de surveillance","SPC","capabilité","production","qualité"],
+    "Responsable Vie Série": ["vie série","8D","SCAR","amélioration continue","production","qualité","réclamations clients"],
+    "Program Manager": ["program manager","PMO","OEM","Tier1","budget","planning","risk management","stakeholders"]
+  },
+  "Électrique / Véhicules électriques": {
+    "Battery Systems Engineer": ["batterie","Li-ion","BMS","pack batterie","thermique","SOC","SOH","cellules","test batterie"],
+    "BMS Engineer": ["BMS","SOC","SOH","batterie","algorithme","CAN","LIN","AUTOSAR","calibration batterie","sécurité"],
+    "HV Engineer": ["haute tension","HV","sécurité électrique","onduleur","moteur électrique","câblage HV","norme IEC"],
+    "Power Electronics Engineer": ["électronique de puissance","onduleur","DC/DC","chargeur embarqué","IGBT","MOSFET","SiC"],
+    "Charging Systems Engineer": ["recharge","AC","DC","CCS","CHAdeMO","OCPP","V2G","protocole charge","bornes"],
+    "Electric Powertrain Engineer": ["groupe motopropulseur électrique","moteur électrique","réducteur","NVH","performance EV"]
+  },
+  "Connected Car": {
+    "Cybersecurity Engineer": ["cybersécurité","ISO 21434","TARA","threat analysis","CAN","Ethernet","PKI","HSM","EVITA"],
+    "Functional Safety Engineer (ISO 26262)": ["ISO 26262","ASIL","FMEA","FTA","safety case","HARA","sécurité fonctionnelle"],
+    "ASPICE Engineer": ["ASPICE","SPICE","processus","audit","amélioration","SWE","SYS","MAN","évaluation","Intland"],
+    "Software Quality Engineer": ["qualité logiciel","MISRA","revue de code","couverture de test","ASPICE","métriques","static analysis"]
+  }
+};
+
+const STATUTS = ['Non défini','À contacter','Contacté','Entretien','Validé','Refus'];
+const STATUT_CLS = ['s0','s1','s2','s3','s4','s5'];
+
+const LS_CLE    = 'taf_cle_api';
+const LS_RES    = 'taf_resultats';
+const LS_POSTES = 'taf_postes';
+const LS_HIST   = 'taf_historique';
+const LS_FICHES = 'taf_fiches';
+const LIMITE_KB = 5120;
+
+// ── ÉTAT ─────────────────────────────────────────────────────────────────────
+const E = {
+  cvs: [], postes: [], resultats: {}, historique: [], fiches: {},
+  cleApi: '', selection: new Set()
+};
+let nbPoste = 0, analyseAnnulee = false, dblResolve = null;
+let currentAnonHTML = '';
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+const DEFAULT_API_KEY = '';
+
+window.onload = () => {
+  majStk();
+  let cle = localStorage.getItem(LS_CLE);
+  if (!cle) { ouvrirModal('mw-cle'); }
+  else { E.cleApi = cle; chargerStorage(); }
+};
+
+function validerCle() {
+  const v = document.getElementById('inp-cle').value.trim();
+  if (!v.startsWith('sk-ant-')) { affAl('al-cle','Clé invalide','err'); return; }
+  E.cleApi = v;
+  localStorage.setItem(LS_CLE, v);
+  fermerModal('mw-cle');
+  chargerStorage();
+}
+function reinitCle() {
+  localStorage.removeItem(LS_CLE); E.cleApi = '';
+  document.getElementById('inp-cle').value = '';
+  ouvrirModal('mw-cle'); majStk();
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+function ouvrirModal(id) {
+  document.getElementById('ovl').classList.add('show');
+  document.getElementById(id).classList.add('show');
+  if (id === 'mw-stk') majStk();
+}
+function fermerModal(id) {
+  document.getElementById(id).classList.remove('show');
+  document.getElementById('ovl').classList.remove('show');
+}
+function fermerTout() {
+  document.querySelectorAll('.modal-wrap.show').forEach(m => m.classList.remove('show'));
+  document.getElementById('ovl').classList.remove('show');
+}
+
+// ── STOCKAGE ─────────────────────────────────────────────────────────────────
+function tailleLS() {
+  let t = 0;
+  for (let k in localStorage) if (localStorage.hasOwnProperty(k)) t += (localStorage[k].length + k.length) * 2;
+  return t;
+}
+function majStk() {
+  const kb = Math.round(tailleLS() / 1024);
+  const pct = Math.min(100, Math.round((kb / LIMITE_KB) * 100));
+  const txt = kb + ' Ko / ~' + LIMITE_KB + ' Ko (' + pct + '%)';
+  const clr = pct > 80 ? '#dc2626' : '#5bb8ff';
+  ['s-fill','s2-fill','hd-fill'].forEach(id => { const el = document.getElementById(id); if(el){el.style.width=pct+'%';el.style.background=clr;} });
+  ['s-pct','s2-pct'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = pct+'%'; });
+  ['s-det','s2-det'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = txt; });
+  const hs = document.getElementById('hd-stk'); if(hs) hs.textContent = kb+' Ko';
+}
+function sauvegarder() {
+  try {
+    localStorage.setItem(LS_RES, JSON.stringify(E.resultats));
+    localStorage.setItem(LS_POSTES, JSON.stringify(E.postes.map(p=>({id:p.id,titre:p.titre,inclure:p.inclure,exclure:p.exclure,seniorite:p.seniorite,ficheTexte:p.ficheTexte}))));
+    localStorage.setItem(LS_HIST, JSON.stringify(E.historique));
+    localStorage.setItem(LS_FICHES, JSON.stringify(E.fiches));
+    majStk();
+  } catch(e) { alert('Stockage plein — supprime des analyses dans Stockage.'); }
+}
+function sauvegarderPostes() {
+  try {
+    localStorage.setItem(LS_POSTES, JSON.stringify(E.postes.map(p=>({id:p.id,titre:p.titre,inclure:p.inclure,exclure:p.exclure,seniorite:p.seniorite,ficheTexte:p.ficheTexte}))));
+  } catch(e) {}
+}
+function chargerStorage() {
+  majStk();
+  try {
+    const h = localStorage.getItem(LS_HIST); if(h) E.historique = JSON.parse(h);
+    const fi = localStorage.getItem(LS_FICHES); if(fi) E.fiches = JSON.parse(fi);
+    const r = localStorage.getItem(LS_RES);
+    const p = localStorage.getItem(LS_POSTES);
+    if (r && p) {
+      E.resultats = JSON.parse(r);
+      const pd = JSON.parse(p);
+      if (pd.length > 0 && Object.keys(E.resultats).length > 0) {
+        E.postes = pd;
+        pd.forEach(p => rendrePoste(p));
+        majBouton();
+        document.getElementById('etat0').style.display = 'none';
+        afficherResultats();
+      }
+    }
+  } catch(e) {}
+}
+function ouvrirStockage() {
+  majStk();
+  const liste = document.getElementById('stk-liste');
+  liste.innerHTML = '';
+  if (!E.postes.length) { liste.innerHTML = '<p style="font-size:12px;color:var(--gtexte);">Aucune analyse.</p>'; }
+  else {
+    E.postes.forEach(p => {
+      const res = E.resultats[p.id]; if(!res) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bord);font-size:12px;';
+      row.innerHTML = '<span style="flex:1;font-weight:600;">' + p.titre + '</span><span style="color:var(--gtexte);">' + res.length + ' profil(s)</span><button class="btn btn-d btn-sm" data-pid="' + p.id + '" onclick="suppAnalyse(this.dataset.pid)">Supprimer</button>';
+      liste.appendChild(row);
+    });
+  }
+  ouvrirModal('mw-stk');
+}
+function suppAnalyse(pid) {
+  delete E.resultats[pid]; sauvegarder(); fermerModal('mw-stk');
+  if (Object.keys(E.resultats).length > 0) afficherResultats();
+  else { document.getElementById('onglets').classList.remove('show'); document.getElementById('etat0').style.display='block'; }
+}
+function viderTout() {
+  if (!confirm('Supprimer toutes les analyses ?')) return;
+  [LS_RES,LS_POSTES,LS_HIST,LS_FICHES].forEach(k=>localStorage.removeItem(k));
+  E.resultats={}; E.historique=[]; E.fiches={};
+  majStk(); fermerModal('mw-stk');
+  document.getElementById('onglets').classList.remove('show');
+  document.getElementById('etat0').style.display='block';
+}
+
+// ── LECTURE FICHIERS ──────────────────────────────────────────────────────────
+async function lirePDF(f) {
+  const buf = await f.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let txt = '';
+  for (let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const ct=await pg.getTextContent();txt+=ct.items.map(x=>x.str).join(' ')+'\n';}
+  return txt;
+}
+async function lireDocx(f) { const buf=await f.arrayBuffer(); const res=await mammoth.extractRawText({arrayBuffer:buf}); return res.value||''; }
+async function lireTxt(f) { return new Promise((ok,ko)=>{const r=new FileReader();r.onload=e=>ok(e.target.result);r.onerror=()=>ko(new Error('Lecture échouée'));r.readAsText(f,'UTF-8');}); }
+async function lireFichier(f) {
+  const n=f.name.toLowerCase();
+  if(n.endsWith('.pdf')) return await lirePDF(f);
+  if(n.endsWith('.docx')||n.endsWith('.doc')) return await lireDocx(f);
+  return await lireTxt(f);
+}
+function empreinte(txt) { let h=0; for(let i=0;i<Math.min(txt.length,1000);i++){h=((h<<5)-h)+txt.charCodeAt(i);h|=0;} return h.toString(16); }
+function toBase64(f) { return new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result.split(',')[1]);r.onerror=()=>rej(new Error('Lecture échouée'));r.readAsDataURL(f);}); }
+
+// ── GESTION CVS ───────────────────────────────────────────────────────────────
+function onDrop(e) { e.preventDefault(); document.getElementById('zdrop').classList.remove('over'); ajouterCVs(e.dataTransfer.files); }
+
+async function ajouterCVs(fichiers) {
+  for (const f of fichiers) {
+    const id = genId();
+    affCvRow(id, f.name, '⏳ Lecture...', '');
+    try {
+      const texte = await lireFichier(f);
+      if (!texte || texte.trim().length < 30) {
+        majCvRow(id,'❌ Texte non extrait — PDF scanné ou protégé','err');
+        // On n'ajoute PAS ce CV à la liste pour éviter des analyses vides
+        // L'utilisateur voit l'erreur et peut convertir son PDF
+      } else {
+        const emp = empreinte(texte);
+        const histEntry = E.historique.find(h=>h.emp===emp);
+        if (histEntry) {
+          const choix = await demanderDoublon(histEntry,f.name);
+          if (choix==='ignorer'){document.getElementById('cvr-'+id)?.remove();continue;}
+          if (choix==='historique'){document.getElementById('cvr-'+id)?.remove();ouvrirHistoriqueModal();continue;}
+        }
+        const dblSession = E.cvs.find(c=>c.emp===emp);
+        E.cvs.push({id,nom:f.name,texte,emp,fileObj:f});
+        majCvRow(id,dblSession?'⚠ Doublon session':'✅ Prêt',dblSession?'warn':'ok');
+      }
+    } catch(e) { majCvRow(id,'❌ Erreur','warn'); E.cvs.push({id,nom:f.name,texte:'',emp:genId(),fileObj:f}); }
+    majBouton();majCompteurCVs();
+  }
+  document.getElementById('inp-cv').value='';
+}
+
+function demanderDoublon(histEntry, nomFichier) {
+  return new Promise(resolve => {
+    const analyses = (histEntry.analyses||[]).map(a=>a.posteTitre+' ('+a.score+'%)').join(', ');
+    const date = histEntry.date ? new Date(histEntry.date).toLocaleDateString('fr-FR') : '—';
+    document.getElementById('dbl-txt').innerHTML =
+      '<strong>'+(histEntry.nom||histEntry.cvNom)+'</strong> — déjà analysé le '+date+'.<br><br>Postes : '+(analyses||'—')+'<br><br>Que faire avec <em>'+nomFichier+'</em> ?';
+    dblResolve = resolve;
+    ouvrirModal('mw-dbl');
+  });
+}
+function dblChoix(v) { fermerModal('mw-dbl'); if(dblResolve){dblResolve(v);dblResolve=null;} }
+
+function affCvRow(id,nom,st,cls) {
+  const el=document.createElement('div');
+  el.className='cv-row'+(cls?' '+cls:'');el.id='cvr-'+id;
+  el.innerHTML='<span>📄</span><span class="cvnom" title="'+nom+'">'+nom+'</span><span class="cvst" id="cvst-'+id+'">'+st+'</span><button class="cvsup" onclick="suppCV(\''+id+'\')">✕</button>';
+  document.getElementById('liste-cvs').appendChild(el);
+}
+function majCvRow(id,st,cls) {
+  const el=document.getElementById('cvr-'+id);const se=document.getElementById('cvst-'+id);
+  if(se)se.textContent=st;
+  if(el&&cls){el.className='cv-row';el.classList.add(cls);}
+}
+function suppCV(id) { E.cvs=E.cvs.filter(c=>c.id!==id); document.getElementById('cvr-'+id)?.remove(); majBouton(); majCompteurCVs(); }
+
+// ── GESTION POSTES ────────────────────────────────────────────────────────────
+
+function labelMatch(score){
+  if(score>=70) return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#dcfce7;color:#166534;">✅ Match</span>';
+  if(score>=40) return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">⚠ Match partiel</span>';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#fee2e2;color:#991b1b;">❌ Non match</span>';
+}
+function genId() { return Math.random().toString(36).substr(2,9); }
+function ajouterPoste() {
+  const id=genId(); nbPoste++;
+  const p={id,titre:'Poste '+nbPoste,inclure:[],exclure:[],seniorite:'',ficheTexte:''};
+  E.postes.push(p); rendrePoste(p); majBouton();
+}
+function rendrePoste(p) {
+  const el=document.createElement('div');
+  el.className='poste-card';el.id='pc-'+p.id;
+  el.innerHTML='<div class="pc-head" onclick="togP(\''+p.id+'\')">'
+    +'<span>🎯</span><span class="pnom" id="pnom-'+p.id+'">'+p.titre+'</span>'
+    +'<span style="font-size:10px;color:var(--gtexte);margin-left:auto;" id="ptog-'+p.id+'">▼</span>'
+    +'<button class="btn btn-d btn-sm" style="margin-left:6px;" onclick="event.stopPropagation();suppP(\''+p.id+'\')">✕</button>'
+    +'</div>'
+    +'<div class="pc-body open" id="pcb-'+p.id+'">'
+    +'<div class="fg"><label>Intitulé</label><input type="text" value="'+p.titre+'" oninput="majTP(\''+p.id+'\',this.value)"></div>'
+    +'<div class="fg"><label>Expérience attendue</label><input type="text" placeholder="5+ ans, senior..." id="ps-'+p.id+'" value="'+(p.seniorite||'')+'" oninput="E.postes.find(x=>x.id===\''+p.id+'\').seniorite=this.value"></div>'
+    +'<div class="fg"><label>✅ Compétences à inclure</label>'
+    +'<div class="tag-row"><input type="text" id="ti-'+p.id+'" placeholder="CANape..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();addTag(\''+p.id+'\',\'inc\')}"><button class="tbtn inc" onclick="addTag(\''+p.id+'\',\'inc\')">+ Inclure</button></div>'
+    +'<div class="tags-zone" id="tz-inc-'+p.id+'">'+(p.inclure||[]).map(v=>'<span class="tag inc" data-v="'+v+'" data-pid="'+p.id+'" data-type="inc">'+v+' <button onclick="suppTag(this)">✕</button></span>').join('')+'</div></div>'
+    +'<div class="fg"><label>❌ Termes à exclure</label>'
+    +'<div class="tag-row"><input type="text" id="te-'+p.id+'" placeholder="Médical..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();addTag(\''+p.id+'\',\'exc\')}"><button class="tbtn exc" onclick="addTag(\''+p.id+'\',\'exc\')">+ Exclure</button></div>'
+    +'<div class="tags-zone" id="tz-exc-'+p.id+'">'+(p.exclure||[]).map(v=>'<span class="tag exc" data-v="'+v+'" data-pid="'+p.id+'" data-type="exc">'+v+' <button onclick="suppTag(this)">✕</button></span>').join('')+'</div></div>'
+    +'<div class="fg"><label>📎 Fiche de poste (optionnel)</label>'
+    +'<div class="zone-fiche'+(p.ficheTexte?' ok':'')+'" id="zf-'+p.id+'" onclick="document.getElementById(\'fi-'+p.id+'\').click()">'+(p.ficheTexte?'✅ Fiche chargée':'📄 Importer (PDF, DOCX, TXT)')+'</div>'
+    +'<input type="file" id="fi-'+p.id+'" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="importF(\''+p.id+'\',this)"></div>'
+    +'</div>';
+  document.getElementById('liste-postes').appendChild(el);
+}
+function togP(id){const b=document.getElementById('pcb-'+id),t=document.getElementById('ptog-'+id);t.textContent=b.classList.toggle('open')?'▼':'▶';}
+function majTP(id,v){const p=E.postes.find(x=>x.id===id);if(p)p.titre=v||'Sans titre';const el=document.getElementById('pnom-'+id);if(el)el.textContent=v||'Sans titre';sauvegarderPostes();}
+function addTag(pid,type){
+  const inp=document.getElementById('t'+(type==='inc'?'i':'e')+'-'+pid);
+  const val=inp.value.trim();if(!val)return;
+  const p=E.postes.find(x=>x.id===pid);if(!p)return;
+  const arr=type==='inc'?p.inclure:p.exclure;
+  if(arr.some(v=>v.toLowerCase()===val.toLowerCase())){inp.value='';return;}
+  arr.push(val);
+  const zone=document.getElementById('tz-'+type+'-'+pid);
+  const sp=document.createElement('span');
+  sp.className='tag '+type;sp.dataset.v=val;sp.dataset.pid=pid;sp.dataset.type=type;
+  sp.innerHTML=val+' <button onclick="suppTag(this)">✕</button>';
+  zone.appendChild(sp);inp.value='';sauvegarderPostes();
+}
+function suppTag(btn){const sp=btn.parentElement;const{v,pid,type}=sp.dataset;const p=E.postes.find(x=>x.id===pid);if(p){if(type==='inc')p.inclure=p.inclure.filter(x=>x!==v);else p.exclure=p.exclure.filter(x=>x!==v);}sp.remove();sauvegarderPostes();}
+function suppP(id){E.postes=E.postes.filter(p=>p.id!==id);document.getElementById('pc-'+id)?.remove();majBouton();}
+async function importF(pid,inp){
+  const f=inp.files[0];if(!f)return;
+  const zf=document.getElementById('zf-'+pid);zf.textContent='⏳ Lecture...';zf.classList.remove('ok');
+  try{const txt=await lireFichier(f);const p=E.postes.find(x=>x.id===pid);if(p)p.ficheTexte=txt;zf.textContent='✅ '+f.name;zf.classList.add('ok');}
+  catch(e){zf.textContent='❌ Erreur';}
+  inp.value='';
+}
+function majBouton(){document.getElementById('btn-ana').disabled=E.cvs.length===0||E.postes.length===0;sauvegarderPostes();}
+
+// ── ANALYSE ───────────────────────────────────────────────────────────────────
+async function lancerAnalyse() {
+  if(!E.cleApi){alert('Clé API manquante.');return;}
+  document.getElementById('etat0').style.display='none';
+  document.getElementById('onglets').classList.remove('show');
+  document.getElementById('anon-zone').innerHTML='';
+  const pb=document.getElementById('progbar');pb.classList.add('show');
+  document.getElementById('btn-ana').disabled=true;
+  E.resultats={};E.selection.clear();analyseAnnulee=false;
+  const total=E.cvs.length*E.postes.length;let fait=0;
+
+  for(const poste of E.postes){
+    E.resultats[poste.id]=[];
+    for(const cv of E.cvs){
+      if(analyseAnnulee)break;
+      document.getElementById('prog-t').textContent=cv.nom.substring(0,25)+'... × '+poste.titre;
+      const res=await analyserCVvsPoste(cv,poste);
+      E.resultats[poste.id].push({cvId:cv.id,cvNom:cv.nom,...res});
+      majHistorique(cv,poste,res);
+      fait++;
+      document.getElementById('prog-fill').style.width=Math.round((fait/total)*100)+'%';
+      document.getElementById('prog-st').textContent=fait+' / '+total+' analyse(s)';
+    }
+    if(analyseAnnulee)break;
+    E.resultats[poste.id].sort((a,b)=>b.score-a.score);
+  }
+  if(!analyseAnnulee)for(const p of E.postes)redeploi(p.id);
+  pb.classList.remove('show');
+  document.getElementById('btn-ana').disabled=false;
+  if(!analyseAnnulee){sauvegarder();afficherResultats();}
+  else{document.getElementById('etat0').style.display='block';}
+}
+function annulerAnalyse(){if(confirm("Annuler l'analyse en cours ?"))analyseAnnulee=true;}
+
+function majHistorique(cv,poste,res){
+  let entry=E.historique.find(h=>h.emp===cv.emp);
+  if(!entry){entry={emp:cv.emp,nom:res.nom||'',profil:res.profil,cvNom:cv.nom,date:new Date().toISOString(),analyses:[]};E.historique.push(entry);}
+  if(res.nom&&!entry.nom)entry.nom=res.nom;
+  const idx=entry.analyses.findIndex(a=>a.posteId===poste.id);
+  const analyse={posteId:poste.id,posteTitre:poste.titre,score:res.score,date:new Date().toISOString(),res};
+  if(idx>=0)entry.analyses[idx]=analyse;else entry.analyses.push(analyse);
+  entry.date=new Date().toISOString();
+  if(!E.fiches[cv.id])E.fiches[cv.id]={statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:''};
+  if(res.nom&&!E.fiches[cv.id].nom)E.fiches[cv.id].nom=res.nom;
+  if(!E.fiches[cv.id].cvNom)E.fiches[cv.id].cvNom=cv.nom;
+  if(!E.fiches[cv.id].quad)E.fiches[cv.id].quad=genQuad(res.nom||'');
+  if(!E.fiches[cv.id].emp)E.fiches[cv.id].emp=cv.emp;
+}
+
+async function analyserCVvsPoste(cv,poste){
+  try{
+    const rep=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':E.cleApi,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,messages:[{role:'user',content:buildPrompt(cv,poste)}]})
+    });
+    if(!rep.ok){const e=await rep.json();return errRes(poste,'Erreur API: '+(e?.error?.message||rep.status));}
+    const data=await rep.json();
+    return parseRes(data.content?.[0]?.text||'',poste);
+  }catch(e){return errRes(poste,'Erreur réseau');}
+}
+
+function buildPrompt(cv,poste){
+  const inc=poste.inclure.length>0?poste.inclure.join(', '):'aucune précisée';
+  const exc=poste.exclure.length>0?poste.exclure.join(', '):'aucun';
+  const fiche=poste.ficheTexte?'\n\nFICHE DE POSTE :\n'+poste.ficheTexte.substring(0,2000):'';
+  const incList = poste.inclure.length > 0 ? poste.inclure.join(', ') : 'aucune précisée';
+  const excList = poste.exclure.length > 0 ? poste.exclure.join(', ') : 'aucun';
+  const scoreInstructions = poste.inclure.length > 0
+    ? 'Le score doit refléter précisément le nombre de compétences requises trouvées dans le CV. Si toutes les compétences requises sont présentes : score 80-100. Si la moitié : score 40-60. Si aucune : score 0-20. Pondère aussi l expérience et la pertinence globale.'
+    : 'Score basé sur la pertinence globale du profil pour ce poste.';
+  return 'Tu es un expert en recrutement technique spécialisé. Analyse ce CV par rapport au poste avec précision.\n\nPOSTE : "'+poste.titre+'"\nExpérience attendue : '+(poste.seniorite||'non précisée')+'\nCompétences REQUISES (à chercher explicitement dans le CV) : '+incList+'\nTermes éliminatoires : '+excList+fiche+'\n\n'+scoreInstructions+'\n\nCV :\n'+cv.texte.substring(0,3500)+'\n\nJSON attendu :\n{"score":<0-100>,"elimine":<true/false>,"raisonElimination":"<terme ou vide>","nom":"<NOM Prénom extrait du CV, cherche en haut du document>","competencesPresentes":[{"nom":"<compétence requise trouvée>","contexte":"<où exactement dans le CV>"}],"competencesManquantes":["<compétence requise absente du CV>"],"autresCompetences":["<compétences intéressantes non requises>"],"drapeaux":["<point attention réel>"],"resume":"<2 phrases sur l adéquation>","profil":"<titre du candidat>","experience":"<estimation années>"}\n\nRègles STRICTES :\n- elimine=true → score=0 obligatoirement\n- competencesPresentes : UNIQUEMENT les compétences de la liste requises ET trouvées dans le CV\n- competencesManquantes : UNIQUEMENT les compétences de la liste requises ET absentes du CV\n- Si aucune compétence requise précisée, évalue la pertinence globale pour le poste\n- drapeaux=[] si rien à signaler\n- Sois précis sur le contexte de chaque compétence trouvée';
+}
+
+function parseRes(txt,poste){
+  try{
+    const j=JSON.parse(txt.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim());
+    return {score:j.elimine?0:Math.min(100,Math.max(0,parseInt(j.score)||0)),elimine:j.elimine===true,raisonElimination:j.raisonElimination||'',nom:j.nom||'',competencesPresentes:Array.isArray(j.competencesPresentes)?j.competencesPresentes:[],competencesManquantes:Array.isArray(j.competencesManquantes)?j.competencesManquantes:[],autresCompetences:Array.isArray(j.autresCompetences)?j.autresCompetences:[],drapeaux:Array.isArray(j.drapeaux)?j.drapeaux:[],resume:j.resume||'',profil:j.profil||'',experience:j.experience||'—',redeploiement:null,note:''};
+  }catch(e){return errRes(poste,'Erreur parsing');}
+}
+function errRes(poste,msg){return{score:0,elimine:false,raisonElimination:'',nom:'',competencesPresentes:[],competencesManquantes:[...poste.inclure],autresCompetences:[],drapeaux:[msg],resume:'Analyse impossible.',profil:'Erreur',experience:'—',redeploiement:null,note:''};}
+
+function redeploi(srcId){
+  const src=E.resultats[srcId];if(!src)return;
+  for(const res of src){
+    if(res.score>=60)continue;
+    let best=null,bestScore=0;
+    for(const p of E.postes){
+      if(p.id===srcId)continue;
+      const a=E.resultats[p.id]?.find(r=>r.cvId===res.cvId);
+      if(a&&a.score>bestScore&&a.score>=60){bestScore=a.score;best={poste:p.titre,score:a.score};}
+    }
+    res.redeploiement=best;
+  }
+}
+
+// ── AFFICHAGE ─────────────────────────────────────────────────────────────────
+function afficherResultats(){
+  const ong=document.getElementById('onglets');ong.classList.add('show');
+  const nav=document.getElementById('ong-nav');nav.innerHTML='';
+  E.postes.forEach((p,i)=>{
+    if(!E.resultats[p.id])return;
+    const btn=document.createElement('button');
+    btn.className='ong-btn'+(i===0?' actif':'');
+    btn.textContent=p.titre;btn.dataset.pid=p.id;
+    btn.onclick=()=>activerOng(p.id);
+    nav.appendChild(btn);
+  });
+  const premier=E.postes.find(p=>E.resultats[p.id]);
+  if(premier)activerOng(premier.id);
+}
+function activerOng(pid){
+  document.querySelectorAll('.ong-btn').forEach(b=>b.classList.toggle('actif',b.dataset.pid===pid));
+  rendreTableau(pid);
+}
+
+function rendreTableau(pid){
+  const poste=E.postes.find(p=>p.id===pid);
+  const res=E.resultats[pid]||[];
+  const corps=document.getElementById('ong-corps');
+  if(!poste)return;
+  const ok=res.filter(r=>!r.elimine);
+  const eli=res.filter(r=>r.elimine);
+
+  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">'
+    +'<span style="font-size:15px;font-weight:700;">'+poste.titre+'</span>'
+    +'<span style="font-size:12px;color:var(--gtexte);">'+ok.length+' profil(s) · '+eli.length+' éliminé(s)</span>'
+    +'</div>'
+    +'<table class="tbl"><thead>'
+    +'<tr>'
+    +'<th style="width:32px;"><div class="th-inner"><input type="checkbox" id="cb-all-'+pid+'" onchange="toutSelectionner(this,\''+pid+'\')"></div></th>'
+    +'<th style="width:36px;"><div class="th-inner">#</div></th>'
+    +'<th style="min-width:170px;"><div class="th-inner">Candidat</div><div class="th-filter"><input type="text" placeholder="Filtrer..." oninput="filtrer(\''+pid+'\',\'nom\',this.value)"></div></th>'
+    +'<th style="width:70px;"><div class="th-inner">Score</div><div class="th-filter"><input type="text" placeholder="≥ ..." oninput="filtrer(\''+pid+'\',\'score\',this.value)"></div></th>'
+    +'<th><div class="th-inner">Présentes</div><div class="th-filter"><input type="text" placeholder="Filtrer..." oninput="filtrer(\''+pid+'\',\'pres\',this.value)"></div></th>'
+    +'<th><div class="th-inner">Manquantes</div></th>'
+    +'<th><div class="th-inner">Points d\'attention</div></th>'
+    +'<th style="min-width:110px;"><div class="th-inner">Redéploiement</div></th>'
+    
+    +'</tr></thead><tbody id="tbody-'+pid+'">';
+
+  ok.forEach((r,i)=>{
+    const rg=i+1;
+    const nomAff=r.nom||r.cvNom.replace(/\.[^.]+$/,'');
+    const fiche=E.fiches[r.cvId]||{};
+    const stIdx=parseInt(fiche.statut||0);
+    const cop=(r.competencesPresentes||[]).map(c=>'<span class="rtag pres">'+c.nom+'</span>').join('');
+    const cmq=(r.competencesManquantes||[]).map(c=>'<span class="rtag mq">'+c+'</span>').join('');
+    const drap=(r.drapeaux||[]).map(d=>'<span class="rtag att">⚠ '+d+'</span>').join('');
+    const red=r.redeploiement?'<span style="font-size:11px;color:var(--marine2);">→ '+r.redeploiement.poste+'<br><span style="font-size:10px;color:var(--gtexte);">'+r.redeploiement.score+'%</span></span>':'—';
+    const searchNom=(r.nom+' '+r.cvNom).toLowerCase();
+    const searchPres=(r.competencesPresentes||[]).map(c=>c.nom).join(' ').toLowerCase();
+    const checked=E.selection.has(r.cvId+'-'+pid);
+
+    h+='<tr class="data-row" data-cvid="'+r.cvId+'" data-pid="'+pid+'" data-nom="'+searchNom+'" data-score="'+r.score+'" data-pres="'+searchPres+'" onclick="ouvrirDetail(\''+r.cvId+'\',\''+pid+'\')" style="cursor:pointer;">'
+      +'<td onclick="event.stopPropagation()"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleSel(\''+r.cvId+'\',\''+pid+'\',this)"></td>'
+      +'<td style="text-align:center;font-size:14px;font-weight:800;color:var(--marine);">'+rg+'</td>'
+      +'<td>'
+        +'<div style="font-size:14px;font-weight:700;color:var(--dark);">'+nomAff+'</div>'
+        +'<div style="font-size:11px;color:var(--gtexte);margin-top:2px;">'+r.profil+'</div>'
+        +'<div style="font-size:11px;color:var(--gtexte);">Exp. : '+r.experience+'</div>'
+    +'<div style="margin-top:4px;">'+labelMatch(r.score)+'</div>'
+        +'<span class="statut-badge s'+stIdx+'">'+STATUTS[stIdx]+'</span>'
+      +'</td>'
+      +'<td style="font-size:20px;font-weight:800;color:var(--marine);text-align:center;">'+r.score+'%</td>'
+      +'<td>'+(cop||'—')+'</td>'
+      +'<td>'+(cmq||'—')+'</td>'
+      +'<td>'+(drap||'—')+'</td>'
+      +'<td>'+red+'</td>'
+      
+    +'</tr>';
+  });
+
+  if(eli.length>0){
+    h+='<tr><td colspan="9" style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gtexte);background:var(--gris);border-top:2px solid var(--bord);">Profils éliminés</td></tr>';
+    eli.forEach(r=>{
+      const nomAff=r.nom||r.cvNom.replace(/\.[^.]+$/,'');
+      h+='<tr style="opacity:.55;" onclick="ouvrirDetail(\''+r.cvId+'\',\''+pid+'\')" style="cursor:pointer;">'
+        +'<td></td><td style="text-align:center;color:var(--gtexte);">—</td>'
+        +'<td><div style="font-size:14px;font-weight:700;">'+nomAff+'</div><div style="font-size:11px;color:var(--gtexte);">'+r.cvNom+'</div></td>'
+        +'<td style="font-size:18px;font-weight:800;text-align:center;color:var(--gtexte);">0%</td>'
+        +'<td colspan="4" style="font-size:12px;color:var(--gtexte);">Terme exclu : '+(r.raisonElimination||'—')+'</td>'
+        +'<td></td></tr>';
+    });
+  }
+
+  h+='</tbody></table>';
+  corps.innerHTML=h;
+}
+
+function filtrer(pid,col,val){
+  const tbody=document.getElementById('tbody-'+pid);if(!tbody)return;
+  const lignes=tbody.querySelectorAll('tr[data-nom]');
+  lignes.forEach(tr=>{
+    let ok=true;
+    if(col==='nom')ok=!val||tr.dataset.nom.includes(val.toLowerCase());
+    if(col==='score'){const n=parseInt(val);ok=isNaN(n)||parseInt(tr.dataset.score)>=n;}
+    if(col==='pres')ok=!val||tr.dataset.pres.includes(val.toLowerCase());
+    tr.classList.toggle('hidden',!ok);
+  });
+}
+
+// ── SÉLECTION ─────────────────────────────────────────────────────────────────
+function toggleSel(cvId,pid,cb){
+  const key=cvId+'-'+pid;
+  if(cb.checked)E.selection.add(key);else E.selection.delete(key);
+  majBarreSelection();
+}
+function toutSelectionner(cbAll,pid){
+  const tbody=document.getElementById('tbody-'+pid);if(!tbody)return;
+  tbody.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    const tr=cb.closest('tr');if(!tr)return;
+    const cvId=tr.dataset.cvid;const p=tr.dataset.pid;
+    if(!cvId||!p)return;
+    cb.checked=cbAll.checked;
+    const key=cvId+'-'+p;
+    if(cbAll.checked)E.selection.add(key);else E.selection.delete(key);
+  });
+  majBarreSelection();
+}
+function toutDeselectionner(){
+  E.selection.clear();
+  document.querySelectorAll('.tbl input[type=checkbox]').forEach(cb=>cb.checked=false);
+  const cbAll=document.querySelector('input[id^="cb-all-"]');if(cbAll)cbAll.checked=false;
+  majBarreSelection();
+}
+function majBarreSelection(){
+  const bar=document.getElementById('sel-bar');
+  const n=E.selection.size;
+  if(n>0){bar.classList.add('show');document.getElementById('sel-count').textContent=n+' profil(s) sélectionné(s)';}
+  else bar.classList.remove('show');
+}
+
+// ── EMAIL GROUPÉ ──────────────────────────────────────────────────────────────
+// Colonnes email
+const EMAIL_COLS = [
+  {id:'quad',   label:'Profil',        visible:true},
+  {id:'nom',    label:'Nom / Prénom',   visible:true},
+  {id:'poste',  label:'Poste',         visible:true},
+  {id:'dispo',  label:'Disponibilité', visible:true},
+  {id:'mobilite',label:'Mobilité',     visible:true},
+  {id:'pretention',label:'Prétention', visible:true},
+  {id:'tjm',    label:'TJM',           visible:true},
+  {id:'remarques',label:'Remarques',   visible:true},
+];
+let emailLignes = [];
+let emailParPoste = {};
+
+function genererEmail(){
+  if(!E.selection.size)return;
+  emailLignes=[];emailParPoste={};
+  E.selection.forEach(key=>{
+    const dashIdx=key.indexOf('-');
+    const cvId=key.substring(0,dashIdx);
+    const pid=key.substring(dashIdx+1);
+    const fiche=E.fiches[cvId]||{};
+    let nom=fiche.nom||'—';
+    let quad=fiche.quad||genQuad(nom);
+    let posteTitre='Sans poste';
+    if(pid!=='__fiche__'){
+      const poste=E.postes.find(p=>p.id===pid);
+      const res=(E.resultats[pid]||[]).find(r=>r.cvId===cvId);
+      if(poste)posteTitre=poste.titre;
+      if(res&&res.nom&&!fiche.nom)nom=res.nom;
+      if(res)quad=fiche.quad||genQuad(res.nom||'');
+    }
+    const ligne={cvId,quad,nom,poste:posteTitre,dispo:fiche.dispo||'',mobilite:fiche.mobilite||'',pretention:fiche.pretention||'',tjm:fiche.tjm||'',remarques:fiche.remarques||''};
+    if(!emailParPoste[posteTitre])emailParPoste[posteTitre]=[];
+    emailParPoste[posteTitre].push(ligne);
+    emailLignes.push(ligne);
+  });
+  if(!emailLignes.length){alert('Aucun profil valide sélectionné.');return;}
+  rendreTogglesCols();
+  rendreEmailHTML();
+  ouvrirModal('mw-email');
+}
+
+function rendreTogglesCols(){
+  const zone=document.getElementById('col-toggles');
+  zone.innerHTML='';
+  EMAIL_COLS.forEach(col=>{
+    const btn=document.createElement('button');
+    btn.className='btn btn-sm '+(col.visible?'btn-m':'btn-g');
+    btn.textContent=col.label;
+    btn.onclick=()=>{col.visible=!col.visible;btn.className='btn btn-sm '+(col.visible?'btn-m':'btn-g');rendreEmailHTML();};
+    zone.appendChild(btn);
+  });
+}
+
+function rendreEmailHTML(){
+  const colsVis=EMAIL_COLS.filter(col=>col.visible);
+  const M='#0d3b6e';
+  const G='#f0f4f8';
+  const thS='padding:9px 12px;text-align:left;border:1px solid '+M+';color:#ffffff;font-family:Arial,sans-serif;font-size:12px;font-weight:700;white-space:nowrap;background:'+M+';';
+
+  let tablesHTML='';
+  let ri=0;
+  Object.keys(emailParPoste).forEach(posteTitre=>{
+    const lignes=emailParPoste[posteTitre];
+    let thead='<tr>';
+    colsVis.forEach(col=>{thead+='<th style="'+thS+'">'+col.label+'</th>';});
+    thead+='</tr>';
+    let tbody='';
+    lignes.forEach((l,li)=>{
+      const bg=li%2===0?'#ffffff':G;
+      tbody+='<tr style="background:'+bg+';">';
+      colsVis.forEach(col=>{
+        const val=l[col.id]||'';
+        const bold=col.id==='quad'||col.id==='nom';
+        tbody+='<td contenteditable="true" style="padding:8px 12px;border:1px solid #d1d5db;font-family:Arial,sans-serif;font-size:12px;vertical-align:top;'+(bold?'font-weight:700;color:'+M+';':'')+'" data-row="'+ri+'" data-col="'+col.id+'">'+val+'</td>';
+      });
+      tbody+='</tr>';
+      ri++;
+    });
+    tablesHTML+='<div style="margin-bottom:24px;">'
+      +'<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;">'
+      +'<thead>'
+      +'<tr><td colspan="'+colsVis.length+'" style="background:'+M+';padding:8px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#ffffff;">'+posteTitre+'</td></tr>'
+      +thead
+      +'</thead><tbody>'+tbody+'</tbody></table></div>';
+  });
+
+  const emailComplet='<div style="font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:750px;">'
+    +'<p style="margin-bottom:14px;">Bonjour,</p>'
+    +'<p style="margin-bottom:20px;">Veuillez trouver ci-dessous une sélection de profils :</p>'
+    +tablesHTML
+    +'<p style="margin-top:20px;">Nous restons disponibles pour tout renseignement complémentaire.</p>'
+    +'</div>';
+
+  document.getElementById('email-corps').innerHTML=emailComplet;
+  document.getElementById('email-corps').querySelectorAll('td[data-col]').forEach(td=>{
+    td.addEventListener('input',function(){
+      const row=parseInt(this.dataset.row);
+      const col=this.dataset.col;
+      if(!isNaN(row)&&col&&emailLignes[row])emailLignes[row][col]=this.innerText.trim();
+    });
+  });
+}
+
+function genQuad(nom){
+  nom=nom.trim();if(!nom)return 'XXXX';
+  const words=nom.split(/\s+/).filter(Boolean);
+  if(words.length>=2){
+    const w1=words[0],w2=words[words.length-1];
+    return ((w1[0]||'')+(w1[w1.length-1]||'')+(w2[0]||'')+(w2[w2.length-1]||'')).toUpperCase();
+  }
+  const w=words[0];
+  return ((w[0]||'')+(w[1]||'')+(w[w.length-2]||'')+(w[w.length-1]||'')).toUpperCase();
+}
+
+function copierEmailOutlook(){
+  const el=document.getElementById('email-corps');
+  if(!el)return;
+  // Sélectionner tout le contenu pour copier avec le formatage HTML
+  const range=document.createRange();
+  range.selectNode(el);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+  try{
+    document.execCommand('copy');
+    const btn=document.querySelector('[onclick="copierEmailOutlook()"]');
+    if(btn){btn.textContent='✅ Copié !';setTimeout(()=>btn.textContent='📋 Copier pour Outlook',2000);}
+  }catch(e){alert('Erreur copie — essaie Ctrl+A puis Ctrl+C dans la zone email.');}
+  window.getSelection().removeAllRanges();
+}
+
+// ── TÉLÉCHARGEMENT CVS ────────────────────────────────────────────────────────
+function ouvrirDlCvs(){
+  if(!E.selection.size){return;}
+  const noms=[];
+  E.selection.forEach(key=>{
+    const [cvId]=key.split('-');
+    const cv=E.cvs.find(c=>c.id===cvId);
+    if(cv)noms.push(cv.nom);
+  });
+  document.getElementById('dlcv-txt').innerHTML='Re-sélectionne les fichiers CVs depuis ton PC.<br>CVs recherchés : <strong>'+noms.join(', ')+'</strong>';
+  document.getElementById('dlcv-status').textContent='';
+  document.getElementById('inp-dlcv').value='';
+  ouvrirModal('mw-dlcv');
+}
+
+function traiterDlCvs(fichiers){
+  const nomsRecherches=new Set();
+  const cvObjMap={};
+  E.selection.forEach(key=>{
+    const [cvId]=key.split('-');
+    const cv=E.cvs.find(c=>c.id===cvId);
+    if(cv){nomsRecherches.add(cv.nom);cvObjMap[cv.nom]=cv;}
+  });
+
+  let trouves=0,manquants=[];
+  for(const f of fichiers){
+    if(nomsRecherches.has(f.name)){
+      const url=URL.createObjectURL(f);
+      const a=document.createElement('a');
+      a.href=url;a.download=f.name;a.click();
+      URL.revokeObjectURL(url);
+      trouves++;
+    }
+  }
+  nomsRecherches.forEach(n=>{
+    let found=false;
+    for(const f of fichiers)if(f.name===n){found=true;break;}
+    if(!found)manquants.push(n);
+  });
+
+  let msg=trouves+' CV(s) téléchargé(s).';
+  if(manquants.length)msg+=' Non trouvés : '+manquants.join(', ');
+  document.getElementById('dlcv-status').textContent=msg;
+}
+
+// ── ANONYMISATION ─────────────────────────────────────────────────────────────
+async function lancerAnon(cvId,pid){
+  const cv=E.cvs.find(c=>c.id===cvId);
+  if(!cv||!cv.fileObj){
+    alert('Le fichier PDF original n\'est plus disponible en mémoire. Ferme et rouvre l\'outil, puis uploade à nouveau ce CV pour l\'anonymiser.');
+    return;
+  }
+  if(!cv.nom.toLowerCase().endsWith('.pdf')){
+    alert('L\'anonymisation nécessite un fichier PDF. Ce CV a été uploadé en format DOCX ou TXT.');
+    return;
+  }
+  const btn=document.querySelector('[onclick="lancerAnon(\''+cvId+'\',\''+pid+'\')"]');
+  if(btn){btn.disabled=true;btn.textContent='⏳ En cours...';}
+  try{
+    const b64=await toBase64(cv.fileObj);
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':E.cleApi,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,system:ANON_PROMPT,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:'Anonymise et structure ce CV selon les instructions.'}]}]})
+    });
+    if(!res.ok){const e=await res.json();throw new Error(e?.error?.message||'Erreur API');}
+    const data=await res.json();
+    const txt=data.content?.[0]?.text||'';
+    const s=txt.indexOf('{'),en=txt.lastIndexOf('}');
+    if(s===-1||en===-1)throw new Error('Réponse JSON invalide');
+    const cvData=JSON.parse(txt.slice(s,en+1));
+    openAnonWindow(cvData);
+  }catch(e){alert('Erreur anonymisation : '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='Anonymiser';}}
+}
+
+function buildTafinarHTML(cvData){
+  const sections=cvData.sections||[];
+  let body='';
+  for(const sec of sections){
+    if(sec.type==='apercu'&&sec.contenu){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Aperçu de carrière')+'</div><div class="apercu">'+sec.contenu+'</div></div><div class="divider"></div>';
+    }else if(sec.type==='experiences'&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Expériences Professionnelles')+'</div>';
+      sec.items.forEach(function(it){const tasks=(it.taches||[]).map(function(tt){return '<li>'+tt+'</li>';}).join('');body+='<div class="exp-block"><div class="exp-bar"></div><div class="exp-content"><div class="exp-title">'+(it.entreprise||'')+(it.poste?' — '+it.poste:'')+'</div><div class="exp-date">'+(it.date||'')+'</div>'+(tasks?'<ul class="exp-tasks">'+tasks+'</ul>':'')+'</div></div>';});
+      body+='</div><div class="divider"></div>';
+    }else if(sec.type==='competences'&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Compétences')+'</div><div class="tags">'+sec.items.map(function(i){return '<span class="tag">'+i+'</span>';}).join('')+'</div></div><div class="divider"></div>';
+    }else if(sec.type==='formation'&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Formation')+'</div>';
+      sec.items.forEach(function(it){body+='<div class="exp-block"><div class="form-bar"></div><div class="exp-content"><div class="exp-title">'+(it.ecole||'')+'</div><div class="exp-date">'+(it.date||'')+'</div>'+((it.diplome||it.specialite)?'<div style="font-size:10pt;color:#6b7280">'+(it.diplome||'')+(it.diplome&&it.specialite?' — ':'')+(it.specialite||'')+'</div>':'')+'</div></div>';});
+      body+='</div><div class="divider"></div>';
+    }else if(sec.type==='certifications'&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Certifications')+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+      sec.items.forEach(function(it){const nm=typeof it==='string'?it:(it.nom||'');const dt=typeof it==='object'&&it.date?it.date:'';body+='<div style="display:flex;align-items:flex-start;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0;margin-top:4px"></div><div><div style="font-size:10pt;color:#374151">'+nm+'</div>'+(dt?'<div style="font-size:9pt;color:#9ca3af">'+dt+'</div>':'')+'</div></div>';});
+      body+='</div></div><div class="divider"></div>';
+    }else if(sec.type==='langues'&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Langues')+'</div>';
+      sec.items.forEach(function(it){const w=Math.round((it.score||0.5)*90);body+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px"><span style="font-size:11pt;color:#374151;min-width:80px">'+(it.langue||'')+'</span><span style="font-size:9pt;color:#9ca3af;min-width:90px">'+(it.niveau||'')+'</span><div style="width:90px;height:3px;background:#e5e7eb;border-radius:2px"><div style="width:'+w+'px;height:3px;background:#22c55e;border-radius:2px"></div></div></div>';});
+      body+='</div><div class="divider"></div>';
+    }else if((sec.type==='generic_tags'||sec.type==='generic_list')&&sec.items&&sec.items.length){
+      body+='<div style="margin-bottom:18px"><div class="sh">'+(sec.titre||'Autres')+'</div>';
+      if(sec.type==='generic_tags')body+='<div>'+sec.items.map(function(i){return '<span style="display:inline-block;background:#f9fafb;border:.5px solid #d1d5db;border-radius:3px;padding:2px 8px;font-size:10pt;color:#374151;margin:2px">'+i+'</span>';}).join('')+'</div>';
+      else body+=sec.items.map(function(i){return '<div style="display:flex;gap:6px;margin-bottom:3px"><div style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0;margin-top:5px"></div><div style="font-size:10pt;color:#374151">'+i+'</div></div>';}).join('');
+      body+='</div><div class="divider"></div>';
+    }
+  }
+  body=body.replace(/<div class="divider"><\/div>\s*$/,'');
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>CV Anonymisé — Profil '+(cvData.code||'')+'</title>'
+    +'<style>@page{size:A4;margin:0}*{box-sizing:border-box;margin:0;padding:0}body{font-family:\'Helvetica Neue\',Arial,sans-serif;background:#fff;color:#111;font-size:13pt;line-height:1.55}.no-print{text-align:center;padding:14px;background:#f3f4f6}.cv{width:210mm;background:#fff;padding:0}.header{padding:22px 28px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.logo-wrap img{height:72px;width:144px;display:block;object-fit:contain}.header-right{text-align:right}.profil-code{font-size:22px;font-weight:700;color:#111;letter-spacing:1px}.green-bar{height:2.5px;background:#22c55e;width:55%;margin-left:auto;margin-top:5px}.poste-title{font-size:11pt;color:#6b7280;margin-top:5px;line-height:1.4;text-align:right}.separator{height:3px;background:linear-gradient(to right,#2563eb,#22c55e)}.body{padding:20px 28px 32px}.sh{font-size:9pt;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}.exp-block{display:flex;gap:8px;margin-bottom:12px}.exp-bar{width:2px;background:#2563eb;border-radius:1px;flex-shrink:0}.form-bar{width:2px;background:#22c55e;border-radius:1px;flex-shrink:0}.exp-content{flex:1;padding-left:5px}.exp-title{font-size:12pt;font-weight:700;color:#111;margin-bottom:2px}.exp-date{font-size:10pt;color:#9ca3af;margin-bottom:4px}.exp-tasks{padding-left:14px}.exp-tasks li{font-size:11pt;color:#374151;margin-bottom:3px;line-height:1.5}.divider{height:.5px;background:#e5e7eb;margin:14px 0}.tags{display:flex;flex-wrap:wrap;gap:5px}.tag{font-size:10pt;color:#2563eb;border:.5px solid #bfdbfe;border-radius:3px;padding:2px 8px;background:#eff6ff}.apercu{font-size:11pt;color:#374151;line-height:1.6;padding:10px 12px;background:#f9fafb;border-left:2px solid #22c55e;border-radius:0 4px 4px 0}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}</style></head><body>'
+    +'<div class="no-print"><button onclick="window.print()" style="background:#1e3a5f;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Imprimer / Télécharger PDF</button></div>'
+    +'<div class="cv">'
+    +'<div class="header"><div class="logo-wrap"><img src="data:image/png;base64,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" alt="TAFINAR"></div>'
+    +'<div class="header-right"><div class="profil-code">Profil '+(cvData.code||'')+'</div><div class="green-bar"></div><div class="poste-title">'+(cvData.titre||'')+'</div></div></div>'
+    +'<div class="separator"></div>'
+    +'<div class="body">'+body+'</div>'
+    +'</div></body></html>';
+}
+
+function openAnonWindow(data){
+  currentAnonHTML=buildTafinarHTML(data);
+  const zone=document.getElementById('anon-zone');
+  zone.innerHTML='';
+  const panel=document.createElement('div');
+  panel.className='anon-panel';
+  panel.innerHTML='<div class="anon-panel-header">'
+    +'<h3>CV Anonymisé — Profil '+(data.code||'')+'</h3>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button class="btn btn-v btn-sm" onclick="downloadAnonPDF()">⬇ Télécharger PDF</button>'
+    +'<button class="btn btn-g btn-sm" onclick="document.getElementById(\'anon-zone\').innerHTML=\'\'">✕</button>'
+    +'</div></div>'
+    +'<div class="anon-iframe-wrap"><iframe id="anon-iframe" title="CV Anonymisé"></iframe></div>';
+  zone.appendChild(panel);
+  const iframe=document.getElementById('anon-iframe');
+  const doc=iframe.contentDocument||iframe.contentWindow.document;
+  doc.open();doc.write(currentAnonHTML);doc.close();
+  iframe.onload=function(){try{const h=iframe.contentDocument.body.scrollHeight;iframe.style.height=Math.max(h+40,400)+'px';}catch(e){}};
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function downloadAnonPDF(){
+  if(!currentAnonHTML){alert('Aucun CV généré.');return;}
+  const win=window.open('','_blank');
+  if(!win){alert('Autorise les popups pour télécharger le PDF.');return;}
+  win.document.open();win.document.write(currentAnonHTML);win.document.close();
+  win.addEventListener('load',function(){setTimeout(function(){win.print();},300);});
+}
+
+// ── PANNEAU DÉTAIL ─────────────────────────────────────────────────────────────
+function ouvrirDetail(cvId,pid){
+  const poste=E.postes.find(p=>p.id===pid);
+  const res=E.resultats[pid]?.find(r=>r.cvId===cvId);
+  if(!poste||!res)return;
+  const fiche=E.fiches[cvId]||{statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:''};
+  const nomAff=res.nom||res.cvNom?.replace(/\.[^.]+$/,'')||'—';
+  document.getElementById('d-nom').textContent=nomAff;
+  document.getElementById('d-poste').textContent=poste.titre+' — '+res.score+'% de correspondance';
+
+  const cop=(res.competencesPresentes||[]).map(c=>'<div class="cline"><span class="ci">✅</span><span class="cn">'+c.nom+'</span><span class="cc">'+(c.contexte||'')+'</span></div>').join('');
+  const cmq=(res.competencesManquantes||[]).map(c=>'<div class="cline"><span class="ci">❌</span><span class="cn">'+c+'</span><span class="cc">Non trouvé</span></div>').join('');
+  const autres=(res.autresCompetences||[]).map(c=>'<span class="rtag pres">'+c+'</span>').join('');
+  const drap=(res.drapeaux||[]).map(d=>'<span class="rtag att">⚠ '+d+'</span>').join('');
+  const bloqRed=res.redeploiement?'<div class="ds"><div class="dst">💡 Redéploiement suggéré</div><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px;font-size:12px;line-height:1.5;">Correspond à <strong>'+res.redeploiement.score+'%</strong> du poste <strong>'+res.redeploiement.poste+'</strong>.</div></div>':'';
+
+  const stOpts=STATUTS.map((s,i)=>'<option value="'+i+'" '+(parseInt(fiche.statut||0)===i?'selected':'')+'>'+s+'</option>').join('');
+
+  document.getElementById('d-corps').innerHTML=
+    '<div class="ds"><div class="dst">Synthèse</div><p style="font-size:12px;line-height:1.6;">'+(res.resume||'—')+'</p><div style="margin-top:7px;font-size:11px;color:var(--gtexte);">Expérience estimée : <strong>'+res.experience+'</strong></div></div>'
+    +'<div class="ds"><div class="dst">Compétences requises</div>'+cop+cmq+((!cop&&!cmq)?'<div style="font-size:12px;color:var(--gtexte);">Aucune spécifiée.</div>':'')+'</div>'
+    +(autres?'<div class="ds"><div class="dst">Autres compétences</div><div style="margin-top:6px;">'+autres+'</div></div>':'')
+    +(drap?'<div class="ds"><div class="dst">⚠ Points d\'attention</div><div style="margin-top:6px;">'+drap+'</div></div>':'')
+    +bloqRed
+    +'<div class="ds"><div class="dst">Fiche profil</div>'
+    +'<div class="fiche-grid">'
+    +'<div class="fiche-champ"><label>Statut</label><select onchange="majFiche(\''+cvId+'\',\'statut\',this.value)">'+stOpts+'</select></div>'
+    +'<div class="fiche-champ"><label>Disponibilité</label><input type="text" value="'+(fiche.dispo||'')+'" placeholder="Immédiate, 1 mois..." onchange="majFiche(\''+cvId+'\',\'dispo\',this.value)"></div>'
+    +'<div class="fiche-champ"><label>Mobilité</label><input type="text" value="'+(fiche.mobilite||'')+'" placeholder="IDF, France..." onchange="majFiche(\''+cvId+'\',\'mobilite\',this.value)"></div>'
+    +'<div class="fiche-champ"><label>Téléphone</label><input type="text" value="'+(fiche.telephone||'')+'" placeholder="06..." onchange="majFiche(\''+cvId+'\',\'telephone\',this.value)"></div>'
+    +'<div class="fiche-champ"><label>Prétention salariale</label><input type="text" value="'+(fiche.pretention||'')+'" placeholder="45k€..." onchange="majFiche(\''+cvId+'\',\'pretention\',this.value)"></div>'
+    +'<div class="fiche-champ"><label>TJM</label><input type="text" value="'+(fiche.tjm||'')+'" placeholder="400€/j..." onchange="majFiche(\''+cvId+'\',\'tjm\',this.value)"></div>'
+    +'<div class="fiche-champ full"><label>Remarques</label><textarea rows="3" placeholder="Notes libres..." onchange="majFiche(\''+cvId+'\',\'remarques\',this.value)">'+(fiche.remarques||'')+'</textarea></div>'
+    +'</div>'
+    +'<button class="btn btn-m btn-sm" style="margin-top:8px;" onclick="sauvegarderFiche(\''+cvId+'\')">Enregistrer la fiche</button>'
+    +'</div>'
+    +'<div class="ds"><div class="dst">Note</div>'
+    +'<textarea style="width:100%;padding:8px;border:1px solid var(--bord);border-radius:6px;font-size:12px;font-family:inherit;min-height:65px;" placeholder="Note libre..." id="note-ta">'+(res.note||'')+'</textarea>'
+    +'<button class="btn btn-m btn-sm" style="margin-top:7px;" onclick="sauvegarderNote(\''+cvId+'\',\''+pid+'\')">Enregistrer note</button>'
+    +'</div>';
+
+  document.getElementById('detail').classList.add('open');
+  document.getElementById('ovl').classList.add('show');
+  // Listener pour champ nom
+  const nomInp=document.getElementById('fiche-nom-inp');
+  if(nomInp){
+    nomInp.addEventListener('input',function(){
+      majFicheAuto(cvId,'nom',this.value);
+      document.getElementById('d-nom').textContent=this.value||'—';
+    });
+  }
+}
+
+function majFicheAuto(cvId,champ,val){
+  majFiche(cvId,champ,val);
+  sauvegarder();
+}
+
+function majFiche(cvId,champ,val){
+  if(!E.fiches[cvId])E.fiches[cvId]={statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:''};
+  E.fiches[cvId][champ]=val;
+}
+function sauvegarderFiche(cvId){
+  sauvegarder();
+  // Rafraîchir le statut dans le tableau
+  const fiche=E.fiches[cvId]||{};
+  const stIdx=parseInt(fiche.statut||0);
+  document.querySelectorAll('tr[data-cvid="'+cvId+'"] .statut-badge').forEach(el=>{
+    el.className='statut-badge s'+stIdx;el.textContent=STATUTS[stIdx];
+  });
+  const btn=document.querySelector('#d-corps .btn-m');
+  if(btn){btn.textContent='✅ Enregistré';btn.disabled=true;setTimeout(()=>{btn.textContent='Enregistrer la fiche';btn.disabled=false;},2000);}
+}
+function sauvegarderNote(cvId,pid){
+  const val=document.getElementById('note-ta')?.value||'';
+  const res=E.resultats[pid]?.find(r=>r.cvId===cvId);
+  if(res){res.note=val;sauvegarder();}
+}
+function fermerDetail(){
+  document.getElementById('detail').classList.remove('open');
+  document.getElementById('ovl').classList.remove('show');
+}
+
+// ── HISTORIQUE ─────────────────────────────────────────────────────────────────
+function ouvrirHistoriqueModal(){ouvrirHistoriquePage();}
+function rendreHistorique(filtre){
+  const corps=document.getElementById('hist-corps');
+  if(!E.historique.length){
+    corps.innerHTML='<div style="background:#fff;border-radius:12px;padding:40px;text-align:center;color:var(--gtexte);font-size:13px;">Aucun historique pour le moment.</div>';
+    return;
+  }
+  const sorted=[...E.historique].sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  let h='<div style="background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead>'
+    +'<tr style="background:var(--marine);color:#fff;">'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;min-width:160px;">Candidat</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Poste analysé</th>'
+    +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;">Score</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;">Date</th>'
+    +'<th style="padding:10px 12px;"></th>'
+    +'</tr>'
+    +'<tr style="background:#f4f5f7;">'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer nom..." data-filtercol="nom" oninput="filtrerHistEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer poste..." data-filtercol="poste" oninput="filtrerHistEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="≥ score..." data-filtercol="score" oninput="filtrerHistEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="jj/mm/aaaa..." data-filtercol="date" oninput="filtrerHistEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th></th>'
+    +'</tr>'
+    +'</thead><tbody id="hist-tbody">';
+
+  sorted.forEach((entry)=>{
+    const nomAff=entry.nom||entry.cvNom.replace(/\.[^.]+$/,'');
+    const analyses=entry.analyses||[];
+    if(analyses.length===0){
+      h+='<tr data-nom="'+nomAff.toLowerCase()+'" data-poste="" data-score="0" data-date="—">'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;">'
+          +'<div style="font-size:13px;font-weight:700;color:var(--dark);">'+nomAff+'</div>'
+          +'<div style="font-size:10px;color:var(--gtexte);margin-top:2px;">'+entry.cvNom+'</div>'
+        +'</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:var(--gtexte);">—</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">—</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;color:var(--gtexte);">—</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;"><button class="btn btn-d btn-sm" data-emp="'+entry.emp+'" onclick="suppHistEntry(this.dataset.emp)">✕</button></td>'
+      +'</tr>';
+    } else {
+      analyses.forEach((a,ai)=>{
+        const date=a.date?new Date(a.date).toLocaleDateString('fr-FR'):(entry.date?new Date(entry.date).toLocaleDateString('fr-FR'):'—');
+        const isFirst=ai===0;
+        const border='border-bottom:1px solid '+(ai===analyses.length-1?'#c8cdd4':'#e5e7eb')+';';
+        const scoreClr=a.score>=80?'#166534':a.score>=55?'#92400e':a.score>=30?'#9a3412':'#991b1b';
+        const scoreBg=a.score>=80?'#dcfce7':a.score>=55?'#fef3c7':a.score>=30?'#ffedd5':'#fee2e2';
+        h+='<tr data-nom="'+nomAff.toLowerCase()+'" data-poste="'+a.posteTitre.toLowerCase()+'" data-score="'+a.score+'" data-date="'+date+'">'
+          +'<td style="padding:'+(isFirst?'10px':'4px')+' 12px;'+border+(isFirst?'':'border-left:3px solid #e0e3e8;')+'">'
+            +(isFirst?'<div style="font-size:13px;font-weight:700;color:var(--dark);">'+nomAff+'</div><div style="font-size:10px;color:var(--gtexte);margin-top:2px;">'+entry.cvNom+'</div>':'')
+          +'</td>'
+          +'<td style="padding:8px 12px;'+border+'font-size:12px;color:var(--dark);">'+a.posteTitre+'</td>'
+          +'<td style="padding:8px 12px;'+border+'text-align:center;">'
+            +'<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:800;background:'+scoreBg+';color:'+scoreClr+';">'+a.score+'%</span>'
+          +'</td>'
+          +'<td style="padding:8px 12px;'+border+'font-size:11px;color:var(--gtexte);white-space:nowrap;">'+date+'</td>'
+          +'<td style="padding:8px 12px;'+border+'">'+(isFirst?'<button class="btn btn-d btn-sm" data-emp="'+entry.emp+'" onclick="suppHistEntry(this.dataset.emp)">✕</button>':'')+'</td>'
+        +'</tr>';
+      });
+    }
+  });
+
+  h+='</tbody></table></div>';
+  corps.innerHTML=h;
+}
+
+function filtrerHistEvt(el){ filtrerHist(el.dataset.filtercol, el.value); }
+function filtrerHist(col,val){
+  const tbody=document.getElementById('hist-tbody');if(!tbody)return;
+  const rows=tbody.querySelectorAll('tr[data-nom]');
+  rows.forEach(tr=>{
+    let ok=true;
+    if(col==='nom')ok=!val||tr.dataset.nom.includes(val.toLowerCase());
+    if(col==='poste')ok=!val||tr.dataset.poste.includes(val.toLowerCase());
+    if(col==='date')ok=!val||tr.dataset.date.includes(val);
+    if(col==='score'){const n=parseInt(val);ok=isNaN(n)||parseInt(tr.dataset.score)>=n;}
+    tr.style.display=ok?'':'none';
+  });
+}
+function suppHistEntry(emp){E.historique=E.historique.filter(h=>h.emp!==emp);sauvegarder();rendreHistorique(document.getElementById('hist-search')?.value||'');}
+function viderHistorique(){if(!confirm('Effacer tout l\'historique ?'))return;E.historique=[];sauvegarder();rendreHistorique('');}
+
+
+// ── ANONYMISATION PAGE DÉDIÉE ─────────────────────────────────────────────
+let anonFichiers = [];
+
+
+function nouvelleAnalyse(){
+  if(!confirm('Démarrer une nouvelle analyse ? CVs et postes en cours seront effacés.'))return;
+  E.cvs=[];E.postes=[];E.resultats={};E.selection.clear();
+  document.getElementById('liste-cvs').innerHTML='';
+  document.getElementById('liste-postes').innerHTML='';
+  document.getElementById('onglets').classList.remove('show');
+  document.getElementById('etat0').style.display='block';
+  document.getElementById('anon-zone').innerHTML='';
+  document.getElementById('sel-bar').classList.remove('show');
+  majCompteurCVs();
+  majBouton();
+}
+
+function majCompteurCVs(){
+  const el=document.getElementById('hd-cv-count');
+  if(el)el.textContent=E.cvs.length+' CV'+(E.cvs.length>1?'s':'');
+}
+
+function ouvrirHistoriquePage(){
+  rendreHistorique('');
+  document.getElementById('page-hist').style.display='block';
+}
+function fermerHistoriquePage(){
+  document.getElementById('page-hist').style.display='none';
+}
+
+async function lancerAnonLigne(btn){
+  const cvId=btn.dataset.cvid;
+  const cv=E.cvs.find(c=>c.id===cvId);
+  if(!cv||!cv.fileObj){
+    alert('Fichier original non disponible. Utilise le bouton Anonymiser dans le header.');
+    return;
+  }
+  if(!cv.nom.toLowerCase().endsWith('.pdf')){
+    alert('Anonymisation : fichier PDF requis.');
+    return;
+  }
+  btn.disabled=true;btn.textContent='⏳...';
+  try{
+    const b64=await toBase64(cv.fileObj);
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':E.cleApi,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,system:ANON_PROMPT,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:'Anonymise et structure ce CV selon les instructions.'}]}]})
+    });
+    if(!res.ok){const e=await res.json();throw new Error(e?.error?.message||'Erreur API');}
+    const data=await res.json();
+    const txt=data.content?.[0]?.text||'';
+    const s=txt.indexOf('{'),en=txt.lastIndexOf('}');
+    if(s===-1||en===-1)throw new Error('Réponse JSON invalide');
+    const cvData=JSON.parse(txt.slice(s,en+1));
+    const html=buildTafinarHTML(cvData);
+    // Stocker le HTML et ouvrir via bouton utilisateur
+    btn.textContent='📄 Ouvrir';
+    btn.disabled=false;
+    btn.onclick=function(){
+      const win=window.open('','_blank');
+      if(win){win.document.open();win.document.write(html);win.document.close();}
+      btn.textContent='✂ Anonymiser';
+      btn.onclick=function(){lancerAnonLigne(btn);};
+    };
+    return;
+  }catch(e){alert('Erreur : '+e.message);}
+  finally{btn.disabled=false;btn.textContent='✂ Anonymiser';}
+}
+
+function fermerFichesPage(){
+  document.getElementById('page-fiches').style.display='none';
+}
+
+function rendreFiches(){
+  const corps=document.getElementById('fiches-corps');
+  // Récupérer tous les cvIds qui ont une fiche avec au moins un champ rempli
+  const entries=[];
+  Object.keys(E.fiches).forEach(cvId=>{
+    const f=E.fiches[cvId];
+    if(!f)return;
+    const aQuelqueChose=f.dispo||f.mobilite||f.pretention||f.tjm||f.telephone||f.remarques||parseInt(f.statut||0)>0;
+    if(!aQuelqueChose)return;
+    // Trouver le nom depuis historique ou CVs
+    let nom='—',cvNom='—';
+    const histEntry=E.historique.find(h=>E.resultats&&Object.values(E.resultats).some(arr=>arr.find(r=>r.cvId===cvId&&(h.emp===(E.cvs.find(c=>c.id===cvId)||{}).emp))));
+    const cv=E.cvs.find(c=>c.id===cvId);
+    if(cv){cvNom=cv.nom;}
+    // Chercher le nom dans les résultats
+    Object.values(E.resultats||{}).forEach(arr=>{
+      const r=arr.find(x=>x.cvId===cvId);
+      if(r&&r.nom)nom=r.nom;
+      if(r&&cvNom==='—')cvNom=r.cvNom||'—';
+    });
+    entries.push({cvId,nom,cvNom,fiche:f});
+  });
+
+  if(!entries.length){
+    corps.innerHTML='<div style="background:#fff;border-radius:12px;padding:40px;text-align:center;color:var(--gtexte);font-size:13px;">Aucune fiche enregistrée pour le moment.</div>';
+    return;
+  }
+
+  const STATUTS_LOCAL=['Non défini','A contacter','Contacté','Entretien','Validé','Refus'];
+  const STATUT_COLORS=['#6b7280','#1d4ed8','#92400e','#5b21b6','#166534','#991b1b'];
+  const STATUT_BG=['#f3f4f6','#dbeafe','#fef3c7','#ede9fe','#dcfce7','#fee2e2'];
+
+  let h='<div style="background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead>'
+    +'<tr style="background:var(--marine);color:#fff;">'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;min-width:150px;">Candidat</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Statut</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Disponibilité</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Mobilité</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Prétention</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">TJM</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Téléphone</th>'
+    +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;">Remarques</th>'
+    +'</tr>'
+    +'<tr style="background:#f4f5f7;">'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer nom..." data-filtercol="nom" oninput="filtrerFichesEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer statut..." data-filtercol="statut" oninput="filtrerFichesEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer..." data-filtercol="dispo" oninput="filtrerFichesEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th style="padding:5px 10px;"><input type="text" placeholder="Filtrer..." data-filtercol="mobilite" oninput="filtrerFichesEvt(this)" style="width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;"></th>'
+    +'<th colspan="4"></th>'
+    +'</tr>'
+    +'</thead><tbody id="fiches-tbody">';
+
+  entries.forEach((e,idx)=>{
+    const f=e.fiche;
+    const stIdx=parseInt(f.statut||0);
+    const bg=idx%2===0?'#fff':'#f8fafc';
+    h+='<tr style="background:'+bg+';border-bottom:1px solid #e5e7eb;" data-nom="'+e.nom.toLowerCase()+'" data-statut="'+(STATUTS_LOCAL[stIdx]||'').toLowerCase()+'" data-dispo="'+(f.dispo||'').toLowerCase()+'" data-mobilite="'+(f.mobilite||'').toLowerCase()+'">'
+      +'<td style="padding:10px 12px;">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--dark);">'+e.nom+'</div>'
+        +'<div style="font-size:10px;color:var(--gtexte);margin-top:2px;">'+e.cvNom+'</div>'
+      +'</td>'
+      +'<td style="padding:10px 12px;">'
+        +'<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:'+STATUT_BG[stIdx]+';color:'+STATUT_COLORS[stIdx]+';">'+STATUTS_LOCAL[stIdx]+'</span>'
+      +'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.dispo||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.mobilite||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.pretention||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.tjm||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.telephone||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;max-width:200px;">'+(f.remarques||'—')+'</td>'
+    +'</tr>';
+  });
+
+  h+='</tbody></table></div>';
+  corps.innerHTML=h;
+}
+
+function filtrerFichesEvt(el){
+  const col=el.dataset.filtercol;
+  const val=el.value.toLowerCase();
+  const tbody=document.getElementById('fiches-tbody');if(!tbody)return;
+  tbody.querySelectorAll('tr[data-nom]').forEach(tr=>{
+    let ok=true;
+    if(col==='nom')ok=!val||tr.dataset.nom.includes(val);
+    if(col==='statut')ok=!val||tr.dataset.statut.includes(val);
+    if(col==='dispo')ok=!val||tr.dataset.dispo.includes(val);
+    if(col==='mobilite')ok=!val||tr.dataset.mobilite.includes(val);
+    tr.style.display=ok?'':'none';
+  });
+}
+
+function ouvrirFichesPage(){ rendreFiches(); document.getElementById('page-fiches').style.display='block'; }
+function fermerFichesPage(){ document.getElementById('page-fiches').style.display='none'; }
+
+function rendreFiches(){
+  const corps=document.getElementById('fiches-corps');
+  const entries=[];
+  Object.keys(E.fiches).forEach(cvId=>{
+    const f=E.fiches[cvId];if(!f)return;
+    const nom=f.nom||f.cvNom||'—';
+    entries.push({cvId,nom,cvNom:f.cvNom||'—',fiche:f});
+  });
+  entries.sort((a,b)=>a.nom.localeCompare(b.nom));
+  if(!entries.length){
+    corps.innerHTML='<div style="background:#fff;border-radius:12px;padding:40px;text-align:center;color:var(--gtexte);font-size:13px;">Aucune fiche enregistrée.</div>';
+    return;
+  }
+  const SL=['Non défini','A contacter','Contacté','Entretien','Validé','Refus'];
+  const SC=['#6b7280','#1d4ed8','#92400e','#5b21b6','#166534','#991b1b'];
+  const SB=['#f3f4f6','#dbeafe','#fef3c7','#ede9fe','#dcfce7','#fee2e2'];
+  const thS='padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#fff;';
+  const thFS='padding:5px 10px;';
+  const fi='width:100%;padding:4px 7px;border:1px solid var(--bord);border-radius:5px;font-size:10px;font-family:inherit;';
+
+  let h='<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">'
+    +'<span style="font-size:13px;font-weight:600;">'+entries.length+' fiche(s)</span>'
+    +'<span id="fiches-sel-count" style="font-size:12px;color:var(--gtexte);"></span>'
+    +'<button class="btn btn-v btn-sm" id="btn-fiches-email" style="display:none;margin-left:auto;" onclick="genererEmailDepuisFiches()">✉ Générer email</button>'
+    +'</div>'
+    +'<div style="background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead>'
+    +'<tr style="background:var(--marine);">'
+    +'<th style="'+thS+'width:32px;"><input type="checkbox" id="cb-fiches-all" onchange="toutSelFiches(this)"></th>'
+    +'<th style="'+thS+'min-width:150px;">Candidat</th>'
+    +'<th style="'+thS+'">Quadrigramme</th>'
+    +'<th style="'+thS+'">Statut</th>'
+    +'<th style="'+thS+'">Disponibilité</th>'
+    +'<th style="'+thS+'">Mobilité</th>'
+    +'<th style="'+thS+'">Prétention</th>'
+    +'<th style="'+thS+'">TJM</th>'
+    +'<th style="'+thS+'">Téléphone</th>'
+    +'<th style="'+thS+'">Remarques</th>'
+    +'</tr>'
+    +'<tr style="background:#f4f5f7;">'
+    +'<th style="'+thFS+'"></th>'
+    +'<th style="'+thFS+'"><input type="text" placeholder="Nom..." data-filtercol="nom" oninput="filtrerFichesEvt(this)" style="'+fi+'"></th>'
+    +'<th style="'+thFS+'"><input type="text" placeholder="Quad..." data-filtercol="quad" oninput="filtrerFichesEvt(this)" style="'+fi+'"></th>'
+    +'<th style="'+thFS+'"><input type="text" placeholder="Statut..." data-filtercol="statut" oninput="filtrerFichesEvt(this)" style="'+fi+'"></th>'
+    +'<th style="'+thFS+'"><input type="text" placeholder="Dispo..." data-filtercol="dispo" oninput="filtrerFichesEvt(this)" style="'+fi+'"></th>'
+    +'<th style="'+thFS+'"><input type="text" placeholder="Mobilité..." data-filtercol="mobilite" oninput="filtrerFichesEvt(this)" style="'+fi+'"></th>'
+    +'<th colspan="4" style="'+thFS+'"></th>'
+    +'</tr>'
+    +'</thead><tbody id="fiches-tbody">';
+
+  entries.forEach((e,idx)=>{
+    const f=e.fiche;
+    const stIdx=parseInt(f.statut||0);
+    const bg=idx%2===0?'#fff':'#f8fafc';
+    const quad=f.quad||genQuad(e.nom);
+    h+='<tr style="background:'+bg+';border-bottom:1px solid #e5e7eb;cursor:pointer;" '
+      +'data-cvid="'+e.cvId+'" data-nom="'+e.nom.toLowerCase()+'" data-quad="'+quad.toLowerCase()+'" '
+      +'data-statut="'+(SL[stIdx]||'').toLowerCase()+'" data-dispo="'+(f.dispo||'').toLowerCase()+'" data-mobilite="'+(f.mobilite||'').toLowerCase()+'">'
+      +'<td style="padding:10px 12px;" onclick="event.stopPropagation()">'
+        +'<input type="checkbox" data-cvid="'+e.cvId+'" onchange="toggleSelFiche(this)">'
+      +'</td>'
+      +'<td style="padding:10px 12px;">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--dark);">'+e.nom+'</div>'
+        +'<div style="font-size:10px;color:var(--gtexte);margin-top:2px;">'+e.cvNom+'</div>'
+      +'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--marine);">'+(quad||'—')+'</td>'
+      +'<td style="padding:10px 12px;">'
+        +'<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:'+SB[stIdx]+';color:'+SC[stIdx]+';">'+SL[stIdx]+'</span>'
+      +'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.dispo||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.mobilite||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.pretention||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.tjm||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;">'+(f.telephone||'—')+'</td>'
+      +'<td style="padding:10px 12px;font-size:12px;max-width:180px;">'+(f.remarques||'—')+'</td>'
+    +'</tr>';
+  });
+
+  h+='</tbody></table></div>';
+  corps.innerHTML=h;
+
+  // Click sur ligne → ouvrir fiche edit
+  document.getElementById('fiches-tbody').querySelectorAll('tr[data-cvid]').forEach(tr=>{
+    tr.addEventListener('click',function(e){
+      if(e.target.type==='checkbox')return;
+      ouvrirFicheEdit(this.dataset.cvid);
+    });
+  });
+}
+
+const fichesSel=new Set();
+function toggleSelFiche(cb){
+  const cvId=cb.dataset.cvid;
+  if(cb.checked)fichesSel.add(cvId);else fichesSel.delete(cvId);
+  majFichesSel();
+}
+function toutSelFiches(cbAll){
+  const tbody=document.getElementById('fiches-tbody');if(!tbody)return;
+  tbody.querySelectorAll('input[type=checkbox][data-cvid]').forEach(cb=>{
+    const tr=cb.closest('tr');if(tr&&tr.style.display==='none')return;
+    cb.checked=cbAll.checked;
+    if(cbAll.checked)fichesSel.add(cb.dataset.cvid);else fichesSel.delete(cb.dataset.cvid);
+  });
+  majFichesSel();
+}
+function majFichesSel(){
+  const n=fichesSel.size;
+  const ct=document.getElementById('fiches-sel-count');if(ct)ct.textContent=n>0?n+' sélectionné(s)':'';
+  const btn=document.getElementById('btn-fiches-email');if(btn)btn.style.display=n>0?'':'none';
+}
+function genererEmailDepuisFiches(){
+  fichesSel.forEach(cvId=>{
+    let found=false;
+    Object.keys(E.resultats||{}).forEach(pid=>{
+      if(found)return;
+      const r=(E.resultats[pid]||[]).find(x=>x.cvId===cvId);
+      if(r){E.selection.add(cvId+'-'+pid);found=true;}
+    });
+    if(!found)E.selection.add(cvId+'-__fiche__');
+  });
+  fermerFichesPage();
+  genererEmail();
+}
+
+function ouvrirFicheEdit(cvId){
+  if(!E.fiches[cvId])E.fiches[cvId]={statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:''};
+  const f=E.fiches[cvId];
+  const nom=f.nom||f.cvNom||'—';
+  const quad=f.quad||genQuad(nom);
+  document.getElementById('d-nom').textContent=nom;
+  document.getElementById('d-poste').textContent='Fiche candidat — '+quad;
+  const SL=['Non défini','A contacter','Contacté','Entretien','Validé','Refus'];
+  const stOpts=SL.map((s,i)=>'<option value="'+i+'"'+(parseInt(f.statut||0)===i?' selected':'')+'>'+s+'</option>').join('');
+  // Construire la fiche sans oninput inline pour éviter les conflits de quotes
+  const ficheEl=document.createElement('div');
+  ficheEl.className='ds';
+  ficheEl.innerHTML='<div class="dst">Informations candidat</div><div class="fiche-grid">'
+    +'<div class="fiche-champ full"><label>Nom / Prénom</label><input type="text" data-champ="nom" value="'+(f.nom||'')+'" placeholder="Nom Prénom..."></div>'
+    +'<div class="fiche-champ"><label>Quadrigramme</label><input type="text" data-champ="quad" value="'+(f.quad||'')+'" placeholder="ABCD"></div>'
+    +'<div class="fiche-champ"><label>Statut</label><select data-champ="statut">'+stOpts+'</select></div>'
+    +'<div class="fiche-champ"><label>Disponibilité</label><input type="text" data-champ="dispo" value="'+(f.dispo||'')+'" placeholder="Immédiate, 1 mois..."></div>'
+    +'<div class="fiche-champ"><label>Mobilité</label><input type="text" data-champ="mobilite" value="'+(f.mobilite||'')+'" placeholder="IDF, France..."></div>'
+    +'<div class="fiche-champ"><label>Téléphone</label><input type="text" data-champ="telephone" value="'+(f.telephone||'')+'" placeholder="06..."></div>'
+    +'<div class="fiche-champ"><label>Prétention salariale</label><input type="text" data-champ="pretention" value="'+(f.pretention||'')+'" placeholder="45k€..."></div>'
+    +'<div class="fiche-champ"><label>TJM</label><input type="text" data-champ="tjm" value="'+(f.tjm||'')+'" placeholder="400€/j..."></div>'
+    +'<div class="fiche-champ full"><label>Remarques</label><textarea data-champ="remarques" rows="3">'+(f.remarques||'')+'</textarea></div>'
+    +'</div><div style="font-size:10px;color:var(--gtexte);margin-top:6px;">✅ Sauvegarde automatique</div>';
+  document.getElementById('d-corps').innerHTML='';
+  document.getElementById('d-corps').appendChild(ficheEl);
+  // Listeners via data-champ
+  ficheEl.querySelectorAll('[data-champ]').forEach(el=>{
+    el.addEventListener('input',function(){
+      const champ=this.dataset.champ;
+      const val=this.value;
+      majFicheAuto(cvId,champ,val);
+      if(champ==='nom')document.getElementById('d-nom').textContent=val||'—';
+    });
+    el.addEventListener('change',function(){
+      const champ=this.dataset.champ;
+      majFicheAuto(cvId,champ,this.value);
+    });
+  });
+  document.getElementById('detail').classList.add('open');
+  document.getElementById('ovl').classList.add('show');
+}
+
+function filtrerFichesEvt(el){
+  const col=el.dataset.filtercol;
+  const val=el.value.toLowerCase();
+  const tbody=document.getElementById('fiches-tbody');if(!tbody)return;
+  tbody.querySelectorAll('tr[data-nom]').forEach(tr=>{
+    let ok=true;
+    if(col==='nom')ok=!val||tr.dataset.nom.includes(val);
+    else if(col==='quad')ok=!val||tr.dataset.quad.includes(val);
+    else if(col==='statut')ok=!val||tr.dataset.statut.includes(val);
+    else if(col==='dispo')ok=!val||tr.dataset.dispo.includes(val);
+    else if(col==='mobilite')ok=!val||tr.dataset.mobilite.includes(val);
+    tr.style.display=ok?'':'none';
+  });
+}
+
+
+function ouvrirComparateur(){
+  if(E.selection.size < 2){ alert('Sélectionne au moins 2 profils pour comparer.'); return; }
+  if(E.selection.size > 4){ alert('Maximum 4 profils à la fois.'); return; }
+  rendreComparateur();
+  document.getElementById('page-comp').style.display='block';
+}
+function fermerComparateur(){ document.getElementById('page-comp').style.display='none'; }
+
+function rendreComparateur(){
+  const profils=[];
+  E.selection.forEach(key=>{
+    const dashIdx=key.indexOf('-');
+    const cvId=key.substring(0,dashIdx);
+    const pid=key.substring(dashIdx+1);
+    const poste=E.postes.find(p=>p.id===pid);
+    const res=(E.resultats[pid]||[]).find(r=>r.cvId===cvId);
+    const fiche=E.fiches[cvId]||{};
+    if(!res)return;
+    profils.push({cvId,pid,res,fiche,poste});
+  });
+
+  if(!profils.length){ document.getElementById('comp-corps').innerHTML='<p>Aucun profil à comparer.</p>'; return; }
+
+  const colW=Math.floor(100/profils.length)+'%';
+  const M='#0d3b6e';
+  const SL=['Non défini','A contacter','Contacté','Entretien','Validé','Refus'];
+  const SC=['#6b7280','#1d4ed8','#92400e','#5b21b6','#166534','#991b1b'];
+  const SB=['#f3f4f6','#dbeafe','#fef3c7','#ede9fe','#dcfce7','#fee2e2'];
+
+  // Collecter toutes les compétences requises uniques
+  const toutesComps=new Set();
+  profils.forEach(p=>{
+    (p.res.competencesPresentes||[]).forEach(c=>toutesComps.add(c.nom));
+    (p.res.competencesManquantes||[]).forEach(c=>toutesComps.add(c));
+  });
+
+  let h='<div style="display:grid;grid-template-columns:repeat('+profils.length+',1fr);gap:16px;margin-bottom:24px;">';
+
+  // Grouper par poste pour afficher le contexte
+  const postesUniques = [...new Set(profils.map(p=>p.poste?p.poste.titre:'—'))];
+
+  // En-tête : poste(s) de référence
+  if(postesUniques.length === 1){
+    h+='<div style="background:'+M+';padding:12px 16px;border-radius:10px;margin-bottom:20px;">'
+      +'<div style="color:#fff;font-size:13px;font-weight:700;">Poste de référence : '+postesUniques[0]+'</div>'
+      +'<div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:3px;">Comparaison de '+profils.length+' profils</div>'
+    +'</div>';
+  }
+
+  profils.forEach(p=>{
+    const nom=p.fiche.nom||p.res.nom||p.res.cvNom||'—';
+    const quad=p.fiche.quad||genQuad(nom);
+    // Toutes les compétences requises du poste
+    const compsRequises = p.poste ? (E.postes.find(x=>x.id===p.pid)||{inclure:[]}).inclure : [];
+    const compsPresentes = (p.res.competencesPresentes||[]).map(c=>c.nom);
+    const compsMq = p.res.competencesManquantes||[];
+
+    h+='<div style="background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;">'
+      +'<div style="background:'+M+';padding:14px 16px;">'
+        +'<div style="font-size:15px;font-weight:800;color:#fff;">'+nom+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;">'+quad+' · Exp. : '+p.res.experience+'</div>'
+      +'</div>'
+      +'<div style="padding:16px;">'
+        // Score centré
+        +'<div style="text-align:center;margin-bottom:16px;">'
+          +'<div style="font-size:40px;font-weight:800;color:'+M+';">'+p.res.score+'%</div>'
+          +'<div style="margin-top:6px;">'+labelMatch(p.res.score)+'</div>'
+        +'</div>'
+        // Barre de progression du score
+        +'<div style="background:#e5e7eb;border-radius:4px;height:6px;margin-bottom:16px;">'
+          +'<div style="background:'+( p.res.score>=70?'#22c55e':p.res.score>=40?'#f59e0b':'#ef4444' )+';width:'+p.res.score+'%;height:100%;border-radius:4px;"></div>'
+        +'</div>'
+        // Compétences par rapport au POSTE
+        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--marine);margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--marine);">Par rapport au poste</div>'
+        +'<div style="margin-bottom:12px;">'
+          +compsPresentes.map(c=>'<span class="rtag pres" style="margin:2px;">✅ '+c+'</span>').join('')
+          +compsMq.map(c=>'<span class="rtag mq" style="margin:2px;">❌ '+c+'</span>').join('')
+          +(!compsPresentes.length&&!compsMq.length?'<span style="font-size:12px;color:var(--gtexte);">Aucune compétence spécifiée</span>':'')
+        +'</div>'
+        // Autres compétences
+        +((p.res.autresCompetences||[]).length?
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gtexte);margin-bottom:6px;">Autres compétences</div>'
+          +'<div style="margin-bottom:12px;">'+(p.res.autresCompetences||[]).map(c=>'<span class="rtag neutre" style="margin:2px;">'+c+'</span>').join('')+'</div>'
+        :'')
+        // Points d attention
+        +((p.res.drapeaux||[]).length?
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gtexte);margin-bottom:6px;">Points d attention</div>'
+          +'<div style="margin-bottom:12px;">'+(p.res.drapeaux||[]).map(d=>'<span class="rtag att" style="margin:2px;">⚠ '+d+'</span>').join('')+'</div>'
+        :'')
+        // Synthèse
+        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--marine);margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--marine);">Synthèse Haiku</div>'
+        +'<div style="font-size:12px;color:var(--dark);line-height:1.6;font-style:italic;">'+(p.res.resume||'—')+'</div>'
+      +'</div>'
+    +'</div>';
+  });
+
+  h+='</div>';
+  document.getElementById('comp-corps').innerHTML=h;
+}
+
+
+// ── MÉTIERS AUTOMOBILE ────────────────────────────────────────────────────────
+let posteAutoTargetId = null;
+
+function ouvrirSelecteurAuto(){
+  const cats = document.getElementById('auto-categories');
+  cats.innerHTML = '';
+  Object.keys(METIERS_AUTO).forEach(cat => {
+    const metiers = METIERS_AUTO[cat];
+    const div = document.createElement('div');
+    const titre = document.createElement('div');
+    titre.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--marine);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--marine);';
+    titre.textContent = cat;
+    div.appendChild(titre);
+    const btnZone = document.createElement('div');
+    btnZone.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;';
+    Object.keys(metiers).forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-sm';
+      btn.style.cssText = 'background:var(--gris);color:var(--dark);font-weight:500;border:1px solid var(--bord);';
+      btn.textContent = m;
+      btn.addEventListener('click', (function(c,met){ return function(){ selectionnerMetierAuto(c,met); }; })(cat,m));
+      btnZone.appendChild(btn);
+    });
+    div.appendChild(btnZone);
+    cats.appendChild(div);
+  });
+  const divCustom = document.createElement('div');
+  const titreC = document.createElement('div');
+  titreC.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gtexte);margin-bottom:8px;';
+  titreC.textContent = 'Autre (intitulé personnalisé)';
+  divCustom.appendChild(titreC);
+  const rowC = document.createElement('div');
+  rowC.style.cssText = 'display:flex;gap:6px;';
+  const inpC = document.createElement('input');
+  inpC.type='text'; inpC.id='auto-custom-inp'; inpC.placeholder='Intitulé personnalisé...';
+  inpC.style.cssText='flex:1;padding:6px 8px;border:1px solid var(--bord);border-radius:6px;font-size:12px;font-family:inherit;';
+  inpC.addEventListener('keydown',e=>{if(e.key==='Enter')selectionnerMetierCustom();});
+  const btnC = document.createElement('button');
+  btnC.className='btn btn-m btn-sm'; btnC.textContent='Ajouter';
+  btnC.addEventListener('click',selectionnerMetierCustom);
+  rowC.appendChild(inpC); rowC.appendChild(btnC);
+  divCustom.appendChild(rowC); cats.appendChild(divCustom);
+  ouvrirModal('mw-auto');
+}
+
+function selectionnerMetierAuto(cat, metier){
+  fermerModal('mw-auto');
+  const comps = METIERS_AUTO[cat][metier] || [];
+  // Créer un nouveau poste avec le métier sélectionné
+  const id = genId(); nbPoste++;
+  const p = {id, titre:metier, inclure:[...comps], exclure:[], seniorite:'', ficheTexte:''};
+  E.postes.push(p);
+  rendrePoste(p);
+  majBouton();
+  // Ouvrir le panneau du poste pour que l'utilisateur puisse modifier
+  // Les tags sont déjà dans p.inclure, rendrePoste les affiche
+}
+
+function selectionnerMetierCustom(){
+  const val = document.getElementById('auto-custom-inp')?.value.trim();
+  if(!val) return;
+  fermerModal('mw-auto');
+  const id = genId(); nbPoste++;
+  const p = {id, titre:val, inclure:[], exclure:[], seniorite:'', ficheTexte:''};
+  E.postes.push(p);
+  rendrePoste(p);
+  majBouton();
+}
+
+function ouvrirAnonPage(){ anonFichiers=[]; rendreListeAnon(); ouvrirModal('mw-anon'); }
+function anonOnDrop(e){ e.preventDefault(); document.getElementById('anon-drop').classList.remove('over'); anonAjouterFichiers(e.dataTransfer.files); }
+function anonAjouterFichiers(fichiers){
+  for(const f of fichiers){
+    if(!f.name.toLowerCase().endsWith('.pdf')){continue;}
+    if(anonFichiers.find(x=>x.name===f.name))continue;
+    anonFichiers.push(f);
+  }
+  document.getElementById('inp-anon-cv').value='';
+  rendreListeAnon();
+}
+function rendreListeAnon(){
+  const liste=document.getElementById('anon-file-list');
+  const btn=document.getElementById('btn-lancer-anon');
+  liste.innerHTML='';
+  anonFichiers.forEach((f,i)=>{
+    const row=document.createElement('div');
+    row.className='cv-row ok';
+    row.innerHTML='<span>📄</span><span class="cvnom">'+f.name+'</span><button class="cvsup" onclick="anonFichiers.splice('+i+',1);rendreListeAnon()">✕</button>';
+    liste.appendChild(row);
+  });
+  btn.disabled=anonFichiers.length===0;
+}
+function viderListeAnon(){ anonFichiers=[]; rendreListeAnon(); }
+
+async function lancerAnonBatch(){
+  if(!E.cleApi){alert('Clé API manquante.');return;}
+  if(!anonFichiers.length)return;
+  const prog=document.getElementById('anon-progress');
+  const fill=document.getElementById('anon-prog-fill');
+  const st=document.getElementById('anon-prog-st');
+  prog.style.display='block';
+  const btn=document.getElementById('btn-lancer-anon');
+  btn.disabled=true;
+
+  for(let i=0;i<anonFichiers.length;i++){
+    const f=anonFichiers[i];
+    st.textContent='Anonymisation '+(i+1)+'/'+anonFichiers.length+' — '+f.name;
+    fill.style.width=Math.round(((i+1)/anonFichiers.length)*100)+'%';
+    try{
+      const b64=await toBase64(f);
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':E.cleApi,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,system:ANON_PROMPT,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:'Anonymise et structure ce CV selon les instructions.'}]}]})
+      });
+      if(!res.ok){const e=await res.json();throw new Error(e?.error?.message||'Erreur API');}
+      const data=await res.json();
+      const txt=data.content?.[0]?.text||'';
+      const s=txt.indexOf('{'),en=txt.lastIndexOf('}');
+      if(s===-1||en===-1)throw new Error('Réponse JSON invalide');
+      const cvData=JSON.parse(txt.slice(s,en+1));
+      // Ouvrir dans un nouvel onglet
+      const html=buildTafinarHTML(cvData);
+      // Stocker et afficher un bouton d'ouverture
+      const btnId='anon-open-'+Date.now();
+      const btnZone=document.createElement('div');
+      btnZone.style.cssText='margin-top:8px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;gap:10px;';
+      btnZone.innerHTML='<span style="font-size:12px;font-weight:600;flex:1;">✅ '+f.name+' anonymisé</span>'
+        +'<button class="btn btn-v btn-sm" id="'+btnId+'">📄 Ouvrir le CV</button>';
+      document.getElementById('anon-file-list').appendChild(btnZone);
+      document.getElementById(btnId).addEventListener('click',function(){
+        const win=window.open('','_blank');
+        if(win){win.document.open();win.document.write(html);win.document.close();}
+      });
+    }catch(e){
+      alert('Erreur pour '+f.name+' : '+e.message);
+    }
+  }
+  st.textContent='Terminé — '+anonFichiers.length+' CV(s) traité(s).';
+  btn.disabled=false;
+}
+function affAl(id,msg,type){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='alerte show '+type;setTimeout(()=>el.classList.remove('show'),5000);}
+</script>
+</body>
+</html>
