@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAFINAR — Analyse CVs v3.7</title>
+<title>TAFINAR — Analyse CVs v3.8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -209,6 +209,20 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
 </div>
 
 
+
+<!-- MODAL CHOIX POSTE -->
+<div class="modal-wrap" id="mw-choix-poste">
+  <div class="modal">
+    <h2>🎯 Choisir le poste pour chaque profil</h2>
+    <p style="font-size:12px;color:var(--gtexte);margin-bottom:14px;">Sélectionne le poste à associer à chaque profil dans l'email.</p>
+    <div id="choix-poste-corps" style="max-height:360px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-v" onclick="validerChoixPoste()">✅ Générer l'email</button>
+      <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-choix-poste')">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL MÉTIERS AUTOMOBILE -->
 <div class="modal-wrap" id="mw-auto">
   <div class="modal wide" style="max-height:85vh;overflow-y:auto;">
@@ -314,7 +328,7 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
     <button class="hbtn" onclick="ouvrirHistoriquePage()">📋 Historique</button>
     <button class="hbtn" onclick="ouvrirStockage()">💾 Stockage</button>
     <button class="hbtn" onclick="reinitCle()">🔑 Clé</button>
-    <div class="badge-v">v3.7</div>
+    <div class="badge-v">v3.8</div>
   </div>
 </header>
 
@@ -876,10 +890,11 @@ function buildPrompt(cv,poste){
 function parseRes(txt,poste){
   try{
     const j=JSON.parse(txt.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim());
-    return {score:j.elimine?0:Math.min(100,Math.max(0,parseInt(j.score)||0)),elimine:j.elimine===true,raisonElimination:j.raisonElimination||'',nom:j.nom||'',competencesPresentes:Array.isArray(j.competencesPresentes)?j.competencesPresentes.map(x=>typeof x==='string'?{nom:x,contexte:''}:x):[],competencesManquantes:Array.isArray(j.competencesManquantes)?j.competencesManquantes:[],autresCompetences:Array.isArray(j.autresCompetences)?j.autresCompetences:[],drapeaux:Array.isArray(j.drapeaux)?j.drapeaux:[],resume:j.resume||'',profil:j.profil||'',experience:j.experience||'—',redeploiement:null,note:''};
+    return {score:j.elimine?0:Math.min(100,Math.max(0,parseInt(j.score)||0)),elimine:j.elimine===true,raisonElimination:j.raisonElimination||'',nom:j.nom||'',competencesPresentes:Array.isArray(j.competencesPresentes)?j.competencesPresentes.map(x=>typeof x==='string'?{nom:x,contexte:''}:x):[],competencesManquantes:Array.isArray(j.competencesManquantes)?j.competencesManquantes:[],autresCompetences:Array.isArray(j.autresCompetences)?j.autresCompetences:[],
+      pointsForts:Array.isArray(j.pointsForts)?j.pointsForts:[],drapeaux:Array.isArray(j.drapeaux)?j.drapeaux:[],resume:j.resume||'',profil:j.profil||'',experience:j.experience||'—',redeploiement:null,note:''};
   }catch(e){return errRes(poste,'Erreur parsing');}
 }
-function errRes(poste,msg){return{score:0,elimine:false,raisonElimination:'',nom:'',competencesPresentes:[],competencesManquantes:[...poste.inclure],autresCompetences:[],drapeaux:[msg],resume:'Analyse impossible.',profil:'Erreur',experience:'—',redeploiement:null,note:''};}
+function errRes(poste,msg){return{score:0,elimine:false,raisonElimination:'',nom:'',competencesPresentes:[],competencesManquantes:[...poste.inclure],autresCompetences:[],pointsForts:[],drapeaux:[msg],resume:'Analyse impossible.',profil:'Erreur',experience:'—',redeploiement:null,note:''};}
 
 function redeploi(srcId){
   const src=E.resultats[srcId];if(!src)return;
@@ -1043,6 +1058,7 @@ const EMAIL_COLS = [
   {id:'pretention',label:'Prétention', visible:true},
   {id:'tjm',    label:'TJM',           visible:true},
   {id:'remarques',label:'Remarques',   visible:true},
+  {id:'pointsForts',label:'Points forts',  visible:true},
 ];
 let emailLignes = [];
 let emailParPoste = {};
@@ -1065,7 +1081,13 @@ function genererEmail(){
       if(res&&res.nom&&!fiche.nom)nom=res.nom;
       if(res)quad=fiche.quad||genQuad(res.nom||'');
     }
-    const ligne={cvId,quad,nom,poste:posteTitre,dispo:fiche.dispo||'',mobilite:fiche.mobilite||'',pretention:fiche.pretention||'',tjm:fiche.tjm||'',remarques:fiche.remarques||''};
+    // Récupérer les points forts de l'analyse
+    let pointsFortsTexte='';
+    if(pid!=='__fiche__'){
+      const resLigne=(E.resultats[pid]||[]).find(r=>r.cvId===cvId);
+      if(resLigne&&resLigne.pointsForts)pointsFortsTexte=(resLigne.pointsForts||[]).join('\n');
+    }
+    const ligne={cvId,quad,nom,poste:posteTitre,dispo:fiche.dispo||'',mobilite:fiche.mobilite||'',pretention:fiche.pretention||'',tjm:fiche.tjm||'',remarques:fiche.remarques||'',pointsForts:pointsFortsTexte};
     if(!emailParPoste[posteTitre])emailParPoste[posteTitre]=[];
     emailParPoste[posteTitre].push(ligne);
     emailLignes.push(ligne);
@@ -1326,6 +1348,7 @@ function ouvrirDetail(cvId,pid){
   const cop=(res.competencesPresentes||[]).map(c=>'<div class="cline"><span class="ci">✅</span><span class="cn">'+c.nom+'</span><span class="cc">'+(c.contexte||'')+'</span></div>').join('');
   const cmq=(res.competencesManquantes||[]).map(c=>'<div class="cline"><span class="ci">❌</span><span class="cn">'+c+'</span><span class="cc">Non trouvé</span></div>').join('');
   const autres=(res.autresCompetences||[]).map(c=>'<span class="rtag pres">'+c+'</span>').join('');
+  const pf=(res.pointsForts||[]);
   const drap=(res.drapeaux||[]).map(d=>'<span class="rtag att">⚠ '+d+'</span>').join('');
   const bloqRed=res.redeploiement?'<div class="ds"><div class="dst">💡 Redéploiement suggéré</div><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px;font-size:12px;line-height:1.5;">Correspond à <strong>'+res.redeploiement.score+'%</strong> du poste <strong>'+res.redeploiement.poste+'</strong>.</div></div>':'';
 
@@ -1333,6 +1356,7 @@ function ouvrirDetail(cvId,pid){
 
   document.getElementById('d-corps').innerHTML=
     '<div class="ds"><div class="dst">Synthèse</div><p style="font-size:12px;line-height:1.6;">'+(res.resume||'—')+'</p><div style="margin-top:7px;font-size:11px;color:var(--gtexte);">Expérience estimée : <strong>'+res.experience+'</strong></div></div>'
+    +((res.pointsForts&&res.pointsForts.length)?'<div class="ds"><div class="dst" style="color:var(--vert);border-color:var(--vert);">⭐ Points forts</div>'+(res.pointsForts||[]).map(p=>'<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:var(--vert);font-weight:800;font-size:16px;">+</span><span>'+p+'</span></div>').join('')+'</div>':'')
     +'<div class="ds"><div class="dst">Compétences requises</div>'+cop+cmq+((!cop&&!cmq)?'<div style="font-size:12px;color:var(--gtexte);">Aucune spécifiée.</div>':'')+'</div>'
     +(autres?'<div class="ds"><div class="dst">Autres compétences</div><div style="margin-top:6px;">'+autres+'</div></div>':'')
     +(drap?'<div class="ds"><div class="dst">⚠ Points d\'attention</div><div style="margin-top:6px;">'+drap+'</div></div>':'')
@@ -1682,6 +1706,7 @@ function rendreFiches(){
     +'<thead>'
     +'<tr style="background:var(--marine);">'
     +'<th style="'+thS+'width:32px;"><input type="checkbox" id="cb-fiches-all" onchange="toutSelFiches(this)"></th>'
+    +'<th style="'+thS+'width:32px;"></th>'
     +'<th style="'+thS+'min-width:150px;">Candidat</th>'
     +'<th style="'+thS+'">Quadrigramme</th>'
     +'<th style="'+thS+'">Statut</th>'
@@ -1711,7 +1736,8 @@ function rendreFiches(){
     h+='<tr style="background:'+bg+';border-bottom:1px solid #e5e7eb;cursor:pointer;" '
       +'data-cvid="'+e.cvId+'" data-nom="'+e.nom.toLowerCase()+'" data-quad="'+quad.toLowerCase()+'" '
       +'data-statut="'+(SL[stIdx]||'').toLowerCase()+'" data-dispo="'+(f.dispo||'').toLowerCase()+'" data-mobilite="'+(f.mobilite||'').toLowerCase()+'">'
-      +'<td style="padding:10px 12px;" onclick="event.stopPropagation()">'
+      +'<td style="padding:8px 10px;" onclick="event.stopPropagation()">'    +'<button style="background:none;border:none;color:var(--rouge);cursor:pointer;font-size:16px;padding:0;" data-cvid-del="'+e.cvId+'" onclick="supprimerFiche(this.dataset.cvidDel)">✕</button></td>'
+    +'<td style="padding:10px 12px;" onclick="event.stopPropagation()">'
         +'<input type="checkbox" data-cvid="'+e.cvId+'" onchange="toggleSelFiche(this)">'
       +'</td>'
       +'<td style="padding:10px 12px;">'
@@ -1743,6 +1769,14 @@ function rendreFiches(){
   });
 }
 
+function supprimerFiche(cvId){
+  if(!confirm('Supprimer cette fiche ?'))return;
+  delete E.fiches[cvId];
+  fichesSel.delete(cvId);
+  sauvegarder();
+  rendreFiches();
+}
+
 const fichesSel=new Set();
 function toggleSelFiche(cb){
   const cvId=cb.dataset.cvid;
@@ -1764,15 +1798,54 @@ function majFichesSel(){
   const btn=document.getElementById('btn-fiches-email');if(btn)btn.style.display=n>0?'':'none';
 }
 function genererEmailDepuisFiches(){
+  if(!fichesSel.size)return;
+  // Construire la liste des profils avec leurs postes disponibles
+  const profilsAvecPostes=[];
   fichesSel.forEach(cvId=>{
-    let found=false;
+    const postesDispos=[];
     Object.keys(E.resultats||{}).forEach(pid=>{
-      if(found)return;
       const r=(E.resultats[pid]||[]).find(x=>x.cvId===cvId);
-      if(r){E.selection.add(cvId+'-'+pid);found=true;}
+      const p=E.postes.find(x=>x.id===pid);
+      if(r&&p)postesDispos.push({pid,titre:p.titre,score:r.score});
     });
-    if(!found)E.selection.add(cvId+'-__fiche__');
+    const fiche=E.fiches[cvId]||{};
+    const nom=fiche.nom||fiche.cvNom||'—';
+    profilsAvecPostes.push({cvId,nom,postesDispos});
   });
+  // Afficher modal de choix de poste
+  ouvrirChoixPoste(profilsAvecPostes);
+}
+
+function ouvrirChoixPoste(profils){
+  const corps=document.getElementById('choix-poste-corps');
+  let h='';
+  profils.forEach(p=>{
+    h+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--bord);">';
+    h+='<div style="font-size:13px;font-weight:700;margin-bottom:6px;">'+p.nom+'</div>';
+    if(p.postesDispos.length===0){
+      h+='<div style="font-size:12px;color:var(--gtexte);">Aucun poste analysé — profil envoyé sans poste</div>';
+      h+='<input type="hidden" data-cvid="'+p.cvId+'" data-pid="__fiche__">';
+    } else {
+      h+='<select data-cvid="'+p.cvId+'" style="width:100%;padding:6px 8px;border:1px solid var(--bord);border-radius:6px;font-size:12px;font-family:inherit;">';
+      p.postesDispos.forEach(po=>{
+        h+='<option value="'+po.pid+'">'+po.titre+' ('+po.score+'%)</option>';
+      });
+      h+='</select>';
+    }
+    h+='</div>';
+  });
+  corps.innerHTML=h;
+  ouvrirModal('mw-choix-poste');
+}
+
+function validerChoixPoste(){
+  const corps=document.getElementById('choix-poste-corps');
+  corps.querySelectorAll('select[data-cvid],input[data-cvid]').forEach(el=>{
+    const cvId=el.dataset.cvid;
+    const pid=el.value||el.dataset.pid;
+    E.selection.add(cvId+'-'+pid);
+  });
+  fermerModal('mw-choix-poste');
   fermerFichesPage();
   genererEmail();
 }
