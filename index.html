@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAFINAR — Analyse CVs v3.8</title>
+<title>TAFINAR — Analyse CVs v3.9</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
 :root{
@@ -291,6 +292,7 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
     <div id="email-corps" style="max-height:460px;overflow-y:auto;border:1px solid var(--bord);border-radius:8px;padding:16px;background:#fafafa;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
       <button class="btn btn-m btn-sm" onclick="copierEmailOutlook()">📋 Copier pour Outlook</button>
+      <button class="btn btn-v btn-sm" onclick="exporterExcel()">📊 Exporter Excel</button>
       <button class="btn btn-g btn-sm" style="margin-left:auto;" onclick="fermerModal('mw-email')">Fermer</button>
     </div>
   </div>
@@ -328,7 +330,7 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
     <button class="hbtn" onclick="ouvrirHistoriquePage()">📋 Historique</button>
     <button class="hbtn" onclick="ouvrirStockage()">💾 Stockage</button>
     <button class="hbtn" onclick="reinitCle()">🔑 Clé</button>
-    <div class="badge-v">v3.8</div>
+    <div class="badge-v">v3.9</div>
   </div>
 </header>
 
@@ -1050,15 +1052,14 @@ function majBarreSelection(){
 // ── EMAIL GROUPÉ ──────────────────────────────────────────────────────────────
 // Colonnes email
 const EMAIL_COLS = [
-  {id:'quad',   label:'Profil',        visible:true},
-  {id:'nom',    label:'Nom / Prénom',   visible:true},
-  {id:'poste',  label:'Poste',         visible:true},
-  {id:'dispo',  label:'Disponibilité', visible:true},
-  {id:'mobilite',label:'Mobilité',     visible:true},
-  {id:'pretention',label:'Prétention', visible:true},
-  {id:'tjm',    label:'TJM',           visible:true},
-  {id:'remarques',label:'Remarques',   visible:true},
-  {id:'pointsForts',label:'Points forts',  visible:true},
+  {id:'quad',       label:'Profil',         visible:true},
+  {id:'nom',        label:'Nom / Prénom',   visible:true},
+  {id:'dispo',      label:'Disponibilité',  visible:true},
+  {id:'mobilite',   label:'Mobilité',       visible:true},
+  {id:'pretention', label:'Prétention',     visible:true},
+  {id:'tjm',        label:'TJM',            visible:true},
+  {id:'pointsForts',label:'Points forts',   visible:false},
+  {id:'remarques',  label:'Remarques',      visible:true},
 ];
 let emailLignes = [];
 let emailParPoste = {};
@@ -1114,40 +1115,48 @@ function rendreEmailHTML(){
   const colsVis=EMAIL_COLS.filter(col=>col.visible);
   const M='#0d3b6e';
   const G='#f0f4f8';
-  const thS='padding:9px 12px;text-align:left;border:1px solid '+M+';color:#ffffff;font-family:Arial,sans-serif;font-size:12px;font-weight:700;white-space:nowrap;background:'+M+';';
 
   let tablesHTML='';
   let ri=0;
   Object.keys(emailParPoste).forEach(posteTitre=>{
     const lignes=emailParPoste[posteTitre];
-    let thead='<tr>';
-    colsVis.forEach(col=>{thead+='<th style="'+thS+'">'+col.label+'</th>';});
+
+    // En-tête colonnes compatible Outlook
+    let thead='<tr style="background:'+M+';">';
+    colsVis.forEach(col=>{
+      thead+='<th style="padding:9px 12px;text-align:left;border:1px solid '+M+';background:'+M+';">'
+        +'<font color="#ffffff" face="Arial" size="2"><b>'+col.label+'</b></font>'
+        +'</th>';
+    });
     thead+='</tr>';
+
     let tbody='';
     lignes.forEach((l,li)=>{
       const bg=li%2===0?'#ffffff':G;
       tbody+='<tr style="background:'+bg+';">';
       colsVis.forEach(col=>{
-        const val=l[col.id]||'';
+        let val=l[col.id]||'';
+        if(col.id==='pointsForts') val=(val||'').split('\n').join(' • ');
         const bold=col.id==='quad'||col.id==='nom';
-        tbody+='<td contenteditable="true" style="padding:8px 12px;border:1px solid #d1d5db;font-family:Arial,sans-serif;font-size:12px;vertical-align:top;'+(bold?'font-weight:700;color:'+M+';':'')+'" data-row="'+ri+'" data-col="'+col.id+'">'+val+'</td>';
+        tbody+='<td contenteditable="true" bgcolor="'+bg+'" style="padding:8px 12px;border:1px solid #d1d5db;font-family:Arial,sans-serif;font-size:12px;vertical-align:top;'+(bold?'font-weight:700;':'')+(col.id==='pointsForts'?'min-width:180px;':'')+'" data-row="'+ri+'" data-col="'+col.id+'">'+val+'</td>';
       });
       tbody+='</tr>';
       ri++;
     });
-    tablesHTML+='<div style="margin-bottom:24px;">'
-      +'<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;">'
-      +'<thead>'
-      +'<tr><td colspan="'+colsVis.length+'" style="background:'+M+';padding:8px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#ffffff;">'+posteTitre+'</td></tr>'
-      +thead
-      +'</thead><tbody>'+tbody+'</tbody></table></div>';
+
+    // Titre du poste en gras au-dessus, pas dans le tableau
+    tablesHTML+='<p style="font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:'+M+';margin:20px 0 6px 0;"><b>'+posteTitre+'</b></p>'
+      +'<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:20px;">'
+      +'<thead>'+thead+'</thead>'
+      +'<tbody>'+tbody+'</tbody>'
+      +'</table>';
   });
 
   const emailComplet='<div style="font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:750px;">'
-    +'<p style="margin-bottom:14px;">Bonjour,</p>'
+    +'<p style="margin-bottom:16px;">Bonjour,</p>'
     +'<p style="margin-bottom:20px;">Veuillez trouver ci-dessous une sélection de profils :</p>'
     +tablesHTML
-    +'<p style="margin-top:20px;">Nous restons disponibles pour tout renseignement complémentaire.</p>'
+    +'<p style="margin-top:20px;font-family:Arial,sans-serif;font-size:13px;">Nous restons disponibles pour tout renseignement complémentaire.</p>'
     +'</div>';
 
   document.getElementById('email-corps').innerHTML=emailComplet;
@@ -1169,6 +1178,41 @@ function genQuad(nom){
   }
   const w=words[0];
   return ((w[0]||'')+(w[1]||'')+(w[w.length-2]||'')+(w[w.length-1]||'')).toUpperCase();
+}
+
+
+function exporterExcel(){
+  if(!emailLignes.length){alert('Aucun profil à exporter.');return;}
+  const M='#0D3B6E';
+  const wb=XLSX.utils.book_new();
+  const colsVis=EMAIL_COLS.filter(c=>c.visible);
+
+  // Grouper par poste
+  Object.keys(emailParPoste).forEach(posteTitre=>{
+    const lignes=emailParPoste[posteTitre];
+    const wsData=[];
+    // En-tête
+    wsData.push(colsVis.map(c=>c.label));
+    // Lignes
+    lignes.forEach(l=>{
+      wsData.push(colsVis.map(c=>{
+        let v=l[c.id]||'';
+        if(c.id==='pointsForts')v=(v||'').split('\n').join(' • ');
+        return v;
+      }));
+    });
+    const ws=XLSX.utils.aoa_to_sheet(wsData);
+    // Largeurs colonnes
+    ws['!cols']=colsVis.map(c=>{
+      const max=Math.max(c.label.length,...lignes.map(l=>(l[c.id]||'').length));
+      return {wch:Math.min(Math.max(max,10),50)};
+    });
+    // Nom onglet (max 31 chars)
+    const sheetName=posteTitre.substring(0,31);
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  });
+
+  XLSX.writeFile(wb,'TAFINAR_Profils_'+new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')+'.xlsx');
 }
 
 function copierEmailOutlook(){
