@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAFINAR — Analyse CVs v3.9</title>
+<title>TAFINAR — Analyse CVs v4.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -42,7 +42,7 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
 .stk-bg{height:6px;background:var(--gris2);border-radius:3px;margin:6px 0;}
 .stk-bar{height:100%;border-radius:3px;background:var(--vert);transition:width .3s;}
 
-.conteneur{max-width:1440px;margin:0 auto;padding:22px;display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
+.conteneur{width:100%;padding:22px;display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
 
 .panneau{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:hidden;margin-bottom:14px;}
 .p-titre{background:var(--marine);color:#fff;padding:11px 16px;font-size:12px;font-weight:700;letter-spacing:.4px;}
@@ -330,7 +330,7 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
     <button class="hbtn" onclick="ouvrirHistoriquePage()">📋 Historique</button>
     <button class="hbtn" onclick="ouvrirStockage()">💾 Stockage</button>
     <button class="hbtn" onclick="reinitCle()">🔑 Clé</button>
-    <div class="badge-v">v3.9</div>
+    <div class="badge-v">v4.2</div>
   </div>
 </header>
 
@@ -356,9 +356,10 @@ header{background:var(--marine);padding:13px 28px;display:flex;align-items:cente
       <div class="p-titre">🎯 Postes à pourvoir</div>
       <div class="p-corps">
         <button class="btn btn-d btn-sm btn-bl" style="margin-bottom:6px;" onclick="nouvelleAnalyse()">🔄 Nouvelle analyse</button>
-        <div style="display:flex;gap:6px;margin-bottom:9px;"><button class="btn btn-m btn-sm" style="flex:1;" onclick="ajouterPoste()">+ Poste libre</button><button class="btn btn-sm" style="flex:1;background:#0e7c3a;color:#fff;font-weight:700;" onclick="ouvrirSelecteurAuto()">🚗 Poste auto</button></div>
+        
         <div id="liste-postes"></div>
         <div class="sep"></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;"><button class="btn btn-m btn-sm" style="flex:1;" onclick="ajouterPoste()">+ Poste libre</button><button class="btn btn-sm" style="flex:1;background:#0e7c3a;color:#fff;font-weight:700;" onclick="ouvrirSelecteurAuto()">🚗 Poste auto</button></div>
         <button class="btn btn-v btn-bl" id="btn-ana" onclick="lancerAnalyse()" disabled>🔍 Lancer l'analyse</button>
       </div>
     </div>
@@ -784,10 +785,26 @@ function rendrePoste(p) {
     +'<div class="tag-row"><input type="text" id="te-'+p.id+'" placeholder="Médical..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();addTag(\''+p.id+'\',\'exc\')}"><button class="tbtn exc" onclick="addTag(\''+p.id+'\',\'exc\')">+ Exclure</button></div>'
     +'<div class="tags-zone" id="tz-exc-'+p.id+'">'+(p.exclure||[]).map(v=>'<span class="tag exc" data-v="'+v+'" data-pid="'+p.id+'" data-type="exc">'+v+' <button onclick="suppTag(this)">✕</button></span>').join('')+'</div></div>'
     +'<div class="fg"><label>📎 Fiche de poste (optionnel)</label>'
-    +'<div class="zone-fiche'+(p.ficheTexte?' ok':'')+'" id="zf-'+p.id+'" onclick="document.getElementById(\'fi-'+p.id+'\').click()">'+(p.ficheTexte?'✅ Fiche chargée':'📄 Importer (PDF, DOCX, TXT)')+'</div>'
-    +'<input type="file" id="fi-'+p.id+'" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="importF(\''+p.id+'\',this)"></div>'
+    +'<div id="fiche-wrap-'+p.id+'"></div></div>'
     +'</div>';
   document.getElementById('liste-postes').appendChild(el);
+  // Créer la textarea fiche via createElement (évite les quotes imbriquées)
+  const ficheWrap = document.getElementById('fiche-wrap-'+p.id);
+  if(ficheWrap){
+    const ta = document.createElement('textarea');
+    ta.id = 'fiche-ta-'+p.id;
+    ta.rows = 2;
+    ta.placeholder = 'Coller le texte de la fiche de poste ici...';
+    ta.value = p.ficheTexte||'';
+    ta.style.cssText = 'width:100%;padding:6px 8px;border:1px solid var(--bord);border-radius:6px;font-size:11px;font-family:inherit;resize:vertical;min-height:34px;max-height:34px;overflow:hidden;transition:max-height .3s;';
+    ta.addEventListener('focus', function(){ this.style.maxHeight='180px'; this.style.overflow='auto'; });
+    ta.addEventListener('blur', function(){ if(!this.value){ this.style.maxHeight='34px'; this.style.overflow='hidden'; } });
+    ta.addEventListener('input', function(){
+      const poste = E.postes.find(x=>x.id===p.id);
+      if(poste){ poste.ficheTexte=this.value; sauvegarderPostes(); }
+    });
+    ficheWrap.appendChild(ta);
+  }
 }
 function togP(id){const b=document.getElementById('pcb-'+id),t=document.getElementById('ptog-'+id);t.textContent=b.classList.toggle('open')?'▼':'▶';}
 function majTP(id,v){const p=E.postes.find(x=>x.id===id);if(p)p.titre=v||'Sans titre';const el=document.getElementById('pnom-'+id);if(el)el.textContent=v||'Sans titre';sauvegarderPostes();}
@@ -857,11 +874,13 @@ function majHistorique(cv,poste,res){
   const analyse={posteId:poste.id,posteTitre:poste.titre,score:res.score,date:new Date().toISOString(),res};
   if(idx>=0)entry.analyses[idx]=analyse;else entry.analyses.push(analyse);
   entry.date=new Date().toISOString();
-  if(!E.fiches[cv.id])E.fiches[cv.id]={statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:''};
+  if(!E.fiches[cv.id])E.fiches[cv.id]={statut:0,dispo:'',mobilite:'',pretention:'',tjm:'',telephone:'',remarques:'',pointsForts:[]};
   if(res.nom&&!E.fiches[cv.id].nom)E.fiches[cv.id].nom=res.nom;
   if(!E.fiches[cv.id].cvNom)E.fiches[cv.id].cvNom=cv.nom;
   if(!E.fiches[cv.id].quad)E.fiches[cv.id].quad=genQuad(res.nom||'');
   if(!E.fiches[cv.id].emp)E.fiches[cv.id].emp=cv.emp;
+  // Sauvegarder les points forts dans la fiche
+  if(res.pointsForts&&res.pointsForts.length)E.fiches[cv.id].pointsForts=res.pointsForts;
 }
 
 async function analyserCVvsPoste(cv,poste){
@@ -886,7 +905,7 @@ function buildPrompt(cv,poste){
   const scoreInstructions = poste.inclure.length > 0
     ? 'Le score doit refléter précisément le nombre de compétences requises trouvées dans le CV. Si toutes les compétences requises sont présentes : score 80-100. Si la moitié : score 40-60. Si aucune : score 0-20. Pondère aussi l expérience et la pertinence globale.'
     : 'Score basé sur la pertinence globale du profil pour ce poste.';
-  return 'Tu es un expert en recrutement technique spécialisé. Analyse ce CV par rapport au poste avec précision.\n\nPOSTE : "'+poste.titre+'"\nExpérience attendue : '+(poste.seniorite||'non précisée')+'\nCompétences REQUISES (à chercher explicitement dans le CV) : '+incList+'\nTermes éliminatoires : '+excList+fiche+'\n\n'+scoreInstructions+'\n\nCV :\n'+cv.texte.substring(0,3500)+'\n\nRéponds UNIQUEMENT avec ce JSON valide, sans texte avant ni après :\n{"score":<0-100>,"elimine":false,"raisonElimination":"","nom":"<Prenom NOM>","competencesPresentes":["<comp1>","<comp2>"],"competencesManquantes":["<comp3>"],"autresCompetences":["<comp>"],"drapeaux":["<point>"],"resume":"<2 phrases>","profil":"<titre>","experience":"<Xans>"}\n\nRegles : elimine=true score=0. competencesPresentes=noms uniquement. drapeaux=[] si rien.';
+  return 'Tu es un expert en recrutement technique spécialisé. Analyse ce CV par rapport au poste avec précision.\n\nPOSTE : "'+poste.titre+'"\nExpérience attendue : '+(poste.seniorite||'non précisée')+'\nCompétences REQUISES (à chercher explicitement dans le CV) : '+incList+'\nTermes éliminatoires : '+excList+fiche+'\n\n'+scoreInstructions+'\n\nCV :\n'+cv.texte.substring(0,3500)+'\n\nRéponds UNIQUEMENT avec ce JSON valide, sans texte avant ni après :\n{"score":<0-100>,"elimine":false,"raisonElimination":"","nom":"<Prenom NOM>","competencesPresentes":["<comp1>","<comp2>"],"competencesManquantes":["<comp3>"],"autresCompetences":["<comp>"],"pointsForts":["<atout concret 1 vs poste>","<atout concret 2>"],"drapeaux":["<point attention>"],"resume":"<2 phrases>","profil":"<titre>","experience":"<Xans>"}\\n\\nRegles : elimine=true score=0. competencesPresentes=noms uniquement. drapeaux=[] si rien. pointsForts=2 a 4 atouts concrets et specifiques du candidat PAR RAPPORT A CE POSTE. Exemple: experience HIL 5 ans chez OEM, maitrise logiciel INCA confirme, calibration BMS sur EV. Jamais generique. Vides si elimine=true.';
 }
 
 function parseRes(txt,poste){
@@ -1058,7 +1077,7 @@ const EMAIL_COLS = [
   {id:'mobilite',   label:'Mobilité',       visible:true},
   {id:'pretention', label:'Prétention',     visible:true},
   {id:'tjm',        label:'TJM',            visible:true},
-  {id:'pointsForts',label:'Points forts',   visible:false},
+  {id:'pointsForts',label:'Points forts',   visible:true},
   {id:'remarques',  label:'Remarques',      visible:true},
 ];
 let emailLignes = [];
@@ -1113,8 +1132,9 @@ function rendreTogglesCols(){
 
 function rendreEmailHTML(){
   const colsVis=EMAIL_COLS.filter(col=>col.visible);
-  const M='#0d3b6e';
-  const G='#f0f4f8';
+  const M='#dbeafe';
+  const TXT='#1e3a5f';
+  const G='#f8faff';
 
   let tablesHTML='';
   let ri=0;
@@ -1125,7 +1145,7 @@ function rendreEmailHTML(){
     let thead='<tr style="background:'+M+';">';
     colsVis.forEach(col=>{
       thead+='<th style="padding:9px 12px;text-align:left;border:1px solid '+M+';background:'+M+';">'
-        +'<font color="#ffffff" face="Arial" size="2"><b>'+col.label+'</b></font>'
+        +'<font color="#111111" face="Arial" size="2"><b>'+col.label+'</b></font>'
         +'</th>';
     });
     thead+='</tr>';
@@ -1183,36 +1203,35 @@ function genQuad(nom){
 
 function exporterExcel(){
   if(!emailLignes.length){alert('Aucun profil à exporter.');return;}
-  const M='#0D3B6E';
   const wb=XLSX.utils.book_new();
-  const colsVis=EMAIL_COLS.filter(c=>c.visible);
+  const colsVis=EMAIL_COLS.filter(col=>col.visible);
 
-  // Grouper par poste
   Object.keys(emailParPoste).forEach(posteTitre=>{
     const lignes=emailParPoste[posteTitre];
     const wsData=[];
-    // En-tête
-    wsData.push(colsVis.map(c=>c.label));
-    // Lignes
+    wsData.push(colsVis.map(col=>col.label));
     lignes.forEach(l=>{
-      wsData.push(colsVis.map(c=>{
-        let v=l[c.id]||'';
-        if(c.id==='pointsForts')v=(v||'').split('\n').join(' • ');
+      wsData.push(colsVis.map(col=>{
+        let v=l[col.id]||'';
+        if(col.id==='pointsForts')v=(v||'').split('\n').join(' • ');
         return v;
       }));
     });
     const ws=XLSX.utils.aoa_to_sheet(wsData);
+
+    // Styles non supportés par SheetJS gratuit — Excel propre sans couleurs
     // Largeurs colonnes
-    ws['!cols']=colsVis.map(c=>{
-      const max=Math.max(c.label.length,...lignes.map(l=>(l[c.id]||'').length));
-      return {wch:Math.min(Math.max(max,10),50)};
+    ws['!cols']=colsVis.map(col=>{
+      const max=Math.max(col.label.length,...lignes.map(l=>(l[col.id]||'').length));
+      return {wch:Math.min(Math.max(max,12),55)};
     });
-    // Nom onglet (max 31 chars)
-    const sheetName=posteTitre.substring(0,31);
-    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    // Filtre auto
+    ws['!autofilter']={ref:ws['!ref']};
+
+    XLSX.utils.book_append_sheet(wb,ws,posteTitre.substring(0,31));
   });
 
-  XLSX.writeFile(wb,'TAFINAR_Profils_'+new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')+'.xlsx');
+  XLSX.writeFile(wb,'TAFINAR_Profils_'+new Date().toLocaleDateString('fr-FR').split('/').join('-')+'.xlsx');
 }
 
 function copierEmailOutlook(){
@@ -1435,7 +1454,12 @@ function ouvrirDetail(cvId,pid){
 }
 
 function majFicheAuto(cvId,champ,val){
-  majFiche(cvId,champ,val);
+  // pointsForts stocké comme array
+  if(champ==='pointsForts'){
+    majFiche(cvId,champ,val.split('\n').filter(x=>x.trim()));
+  } else {
+    majFiche(cvId,champ,val);
+  }
   sauvegarder();
 }
 
@@ -1916,6 +1940,7 @@ function ouvrirFicheEdit(cvId){
     +'<div class="fiche-champ"><label>Prétention salariale</label><input type="text" data-champ="pretention" value="'+(f.pretention||'')+'" placeholder="45k€..."></div>'
     +'<div class="fiche-champ"><label>TJM</label><input type="text" data-champ="tjm" value="'+(f.tjm||'')+'" placeholder="400€/j..."></div>'
     +'<div class="fiche-champ full"><label>Remarques</label><textarea data-champ="remarques" rows="3">'+(f.remarques||'')+'</textarea></div>'
+    +'<div class="fiche-champ full"><label>Points forts (modifiables)</label><textarea data-champ="pointsForts" rows="3" placeholder="Un point fort par ligne...">'+(Array.isArray(f.pointsForts)?(f.pointsForts||[]).join('\n'):(f.pointsForts||''))+'</textarea></div>'
     +'</div><div style="font-size:10px;color:var(--gtexte);margin-top:6px;">✅ Sauvegarde automatique</div>';
   document.getElementById('d-corps').innerHTML='';
   document.getElementById('d-corps').appendChild(ficheEl);
